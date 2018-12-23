@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">Atom Service</string>
+    <string name="connection">CONNECTION</string>
+    <string name="wifi">WIFI</string>
+    <string name="none">DISCONNECT</string>
+    <string name="tether">TETHERING</string>
+    <string name="moble">MOBILE</string>
+    <string name="address">IP-ADDRESS (V4) </string>
+    <string name="noAddr">--.--.--.--</string>
+    <string name="battry">100</string>
+    <string name="battey_title">Battery</string>
+    <string name="accessbility">PTT</string>
+    <string name="tetherReq">TETHERING</string>
+    <string name="wifiApDesc">WIFI-AP icon</string>
+    <string name="ui_bg" >Atom Service: move to background</string>
+    <string name="finish">Atom Service: stop service </string>
+    <string name="info">INFORMATION</string>
+    <string name="setting">SETTING</string>
+    <string name="activate">FG SERVICE</string>
+    <string name="enable">Enable</string>
+    <string name="disable">Disable</string>
+    <string name="boot">AUTO START</string>
+    <string name="auto">Auto</string>
+    <string name="manual">Manual</string>
+    <string name="bootup">AtomTethering boot-up complete</string>
+    <string name="wallpaper">BackGround Image</string>
+    <string name="clear">No-BG</string>
+</resources>

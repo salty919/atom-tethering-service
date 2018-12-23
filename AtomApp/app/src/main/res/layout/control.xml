@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/background_dark">
+
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="35dp"
+        android:text="@string/info"
+        android:textColor="@android:color/holo_orange_light"
+        android:textSize="30sp" />
+
+    <ImageButton
+        android:id="@+id/wifiAp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="31dp"
+        android:layout_marginTop="115dp"
+        android:background="@drawable/wifiap_style"
+        android:contentDescription="@string/wifiApDesc"
+        app:srcCompat="@drawable/ic_sharp_wifi_tethering_24px" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="235dp"
+        android:layout_marginEnd="10dp"
+        android:gravity="center_vertical|center_horizontal">
+
+        <TextView
+            android:id="@+id/accessibility"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/accessbility"
+            android:textColor="@android:color/background_light"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/tethering"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/tetherReq"
+            android:textColor="@android:color/background_light"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/connect_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="23dp"
+        android:layout_marginTop="330dp"
+        android:text="@string/connection"
+        android:textColor="@android:color/holo_blue_bright" />
+
+    <TextView
+        android:id="@+id/connect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/connect_title"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="-58dp"
+        android:text="@string/none"
+        android:textColor="@android:color/background_light"
+        android:textSize="30sp" />
+
+    <TextView
+        android:id="@+id/address_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignStart="@+id/connect_title"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="0dp"
+        android:layout_marginTop="440dp"
+        android:text="@string/address"
+        android:textColor="@android:color/holo_blue_bright" />
+
+
+    <TextView
+        android:id="@+id/ipaddress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/address_title"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="-58dp"
+        android:text="@string/noAddr"
+        android:textColor="@android:color/background_light"
+        android:textSize="30sp" />
+
+    <TextView
+        android:id="@+id/battery"
+        android:layout_width="133dp"
+        android:layout_height="110dp"
+        android:layout_alignTop="@+id/wifiAp"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginEnd="20dp"
+        android:layout_toEndOf="@+id/wifiAp"
+        android:gravity="center_vertical|center_horizontal"
+        android:text="@string/battry"
+        android:textColor="@android:color/background_light"
+        android:textSize="64sp" />
+
+    <TextView
+        android:id="@+id/battery_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@+id/battery"
+        android:layout_alignBottom="@+id/battery"
+        android:layout_marginEnd="45dp"
+        android:layout_marginBottom="92dp"
+        android:text="@string/battey_title"
+        android:textColor="@android:color/holo_blue_bright" />
+
+    <!--
+    <ProgressBar
+        android:id="@+id/tetheringBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="256dp"
+        android:layout_height="14dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:progress="55"
+        android:max="100"
+        android:progressDrawable="@drawable/progress"
+        android:layout_marginBottom="53dp" />
+    -->
+
+    <TextView
+        android:id="@+id/timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="25dp"
+        android:layout_marginTop="290dp"
+        android:text="dd"
+        android:textColor="@android:color/background_light"
+        android:textSize="18sp" />
+
+</RelativeLayout>
