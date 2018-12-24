@@ -14,4 +14,4 @@ ATOMに「手軽なテザリングの切替」を実現するフォアグラン�
 
 本アプリの操作は
 
-![demo](https://user-images.githubusercontent.com/30016234/50388963-c1bda280-0766-11e9-9831-5d98e4b7da50.png)
+![demo](https://user-images.githubusercontent.com/30016234/50389197-a359a600-076a-11e9-9ebd-ba0394b69f54.PNG)
