@@ -74,6 +74,9 @@ PTTボタンは画面消灯時にはアプリ側から見えなくなります�
 
 ショートカット設定で一番トップにあるCUSTOMを選択します
 
-![SETTING4](
+![SETTING4](https://user-images.githubusercontent.com/30016234/50397062-0f5efd00-07b1-11e9-9329-f4379a976c10.PNG)
+
+設定は以上です
+
 
 
