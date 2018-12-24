@@ -20,7 +20,7 @@ ATOMに「手軽なテザリングの切替」フォアグランドサービス�
 
 ReleaseからAtomTether.Apkをダウンリードしてインストールしてください
 
-
+![install](https://user-images.githubusercontent.com/30016234/50396257-47b00c80-07ac-11e9-98c1-c459c3631a8f.PNG)
 
 UIなどを変更したい方はSRCツリーを改造してAPKをビルドして下さい
 
