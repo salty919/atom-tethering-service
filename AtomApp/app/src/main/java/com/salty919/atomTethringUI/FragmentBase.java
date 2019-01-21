@@ -7,11 +7,13 @@ import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Base64;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.salty919.atomTethringService.AtomService;
+import com.salty919.atomTethringService.AtomStatus;
 
 /*************************************************************************************************
  *
@@ -25,6 +27,9 @@ import com.salty919.atomTethringService.AtomService;
 public abstract class FragmentBase extends Fragment implements GestureDetector.OnDoubleTapListener, GestureDetector.OnGestureListener
 {
 
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
+    public String TAG;
+
     /**********************************************************************************************
      *
      *  リスナー
@@ -33,18 +38,22 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
 
     public interface Listener
     {
+        void onReady(FragmentBase fragment);
+        void onLayoutFix(int width, int height);
+        void onPickupImage();
         void onSingleTapUp();
         void onDoubleTap();
     }
 
     protected   Context         mContext            = null;
-    protected   Listener        mListener           = null;
+    protected   Listener        mListener;
     protected   AtomService     mService            = null;
     protected   AtomPreference  mPreference         = null;
     private     GestureDetector mGestureDetector    = null;
 
-    protected   boolean         mReady              = false;
+    protected boolean           mPttReady           = false;
 
+    protected boolean           mRunning            = false;
     protected   View            mView               = null;
 
     /*********************************************************************************************
@@ -60,7 +69,16 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     {
         super.onAttach(context);
 
+        Log.w(TAG,"onAttach");
+
         mContext = context;
+    }
+
+    @Override
+    public void onDetach()
+    {
+        Log.w(TAG,"onDetach");
+        super.onDetach();
     }
 
     /*********************************************************************************************
@@ -75,12 +93,16 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
+        Log.w(TAG,"onCreate");
+
         super.onCreate(savedInstanceState);
     }
 
     public void onDestroy()
     {
         super.onDestroy();
+
+        Log.w(TAG,"onDestroy");
 
         mService = null;
         mPreference = null;
@@ -108,11 +130,13 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
 
     void setPreference(AtomPreference preference)
     {
+        Log.w(TAG,"setPreference ");
+
         mPreference = preference;
 
         onPreferenceAvailable();
 
-        background_change();
+        background_image();
     }
 
     // 派生クラスを呼び出す（抽象メソッド）
@@ -157,25 +181,34 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
         @Override
         public boolean onTouch(View v, MotionEvent event)
         {
-            if (mReady) mGestureDetector.onTouchEvent(event);
+            if (mPttReady) mGestureDetector.onTouchEvent(event);
             return true;
         }
     };
 
-    public void background_change()
+    /*********************************************************************************************
+     *
+     *  背景イメージの変更
+     *
+     *********************************************************************************************/
+
+    public void background_image()
     {
         if ((mView != null) && (mPreference != null))
         {
             String bmpStr = mPreference.getPref_background();
 
             try {
-                if (!bmpStr.equals("")) {
+                if (!bmpStr.equals(""))
+                {
                     //BitmapFactory.Options options = new BitmapFactory.Options();
                     byte[] byteArray = Base64.decode(bmpStr, Base64.DEFAULT);
                     Bitmap bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length).copy(Bitmap.Config.ARGB_8888, true);
 
                     mView.setBackground(new BitmapDrawable(mContext.getResources(), bitmap));
-                } else {
+                }
+                else
+                {
                     mView.setBackground(null);
                 }
             }
@@ -186,6 +219,8 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
         }
     }
 
+    abstract  void UI_update(AtomStatus.AtomInfo info);
+
     /*********************************************************************************************
      *
      *  各種ジェスチャイベント
@@ -195,6 +230,8 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     @Override
     public boolean onDoubleTap(MotionEvent e)
     {
+        Log.w(TAG,"onDoubleTap"+ (mListener!= null));
+
         if (mListener != null) mListener.onDoubleTap();
         return false;
     }
@@ -202,6 +239,8 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     @Override
     public boolean onSingleTapUp(MotionEvent e)
     {
+        Log.w(TAG,"onSingleTapUp " + (mListener!= null));
+
         if (mListener != null) mListener.onSingleTapUp();
         return false;
     }

@@ -1,26 +1,31 @@
 package com.salty919.atomTethringUI;
 
-import android.app.KeyguardManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.v4.app.FragmentManager;
+import android.os.ParcelFileDescriptor;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.salty919.atomTethringService.AtomService;
 import com.salty919.atomTethringService.AtomStatus;
+
+import java.io.ByteArrayOutputStream;
+import java.io.FileDescriptor;
+import java.io.IOException;
 
 /*************************************************************************************************
  *
@@ -42,13 +47,18 @@ import com.salty919.atomTethringService.AtomStatus;
  *************************************************************************************************/
 
 public class MainActivity extends AppCompatActivity implements ServiceConnection,
-        AtomStatus.observer,AtomService.Listener,FragmentBase.Listener,
+        AtomStatus.observer,AtomService.Listener,ViewPagerAdapter.Listener,
         AtomPreference.callBack
 {
-    private static final String TAG = MainActivity.class.getSimpleName();
+    private static String TAG;
+
+    @SuppressWarnings("SameParameterValue")
+    private String getClassName(Class<?> cls) { return cls.getName(); }
 
     // バンドルキー
-    public static final String    KEY_boot            = "bootUp";
+    public static final String    KEY_boot              = "bootUp";
+
+    public final int   RESULT_PICK_IMAGE                = 1;
 
     // lock
     private final Object                        mBindLock           = new Object();
@@ -78,6 +88,24 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private AtomPreference                      mPreference         = null;
 
     private boolean                             mRestart            = false;
+
+    private boolean                             mAdapterEnable      = false;
+
+    private static int                          mCnt                = 0;
+
+    /**********************************************************************************************
+     *
+     *  コンストラクタ
+     *
+     *********************************************************************************************/
+
+    public MainActivity()
+    {
+        mCnt++;
+
+        TAG =  MainActivity.class.getSimpleName()+ "["+mCnt+"]";
+        Log.w(TAG, " new MainActivity");
+    }
 
     /**********************************************************************************************
      *
@@ -160,7 +188,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         Log.w(TAG,"PKG " + pkgName + " CLS "+ clsName);
 
         mStatus = AtomStatus.shardInstance(pkgName, clsName);
-        mStatus.mUiActive = true;
+        mStatus.uiActive(true);
         mStatus.resisterObserver(this);
 
         //---------------------------------------------------------
@@ -182,11 +210,12 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         setContentView(R.layout.activity_main);
 
-        FragmentManager manager = getSupportFragmentManager();
-        mAdapter = new ViewPagerAdapter(manager);
+        mPager      = findViewById(R.id.viewPager);
+        mAdapter    = new ViewPagerAdapter(getSupportFragmentManager(), mPreference,this);
 
-        mPager    = findViewById(R.id.viewPager);
         mPager.setAdapter(mAdapter);
+
+        mAdapterEnable = true;
 
         //-------------------------------------------------------
         // bind ATOM-SERVICE
@@ -195,10 +224,18 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         doBindService();
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private String getClassName(Class<?> cls)
+    /***********************************************************************************************
+     *
+     *  ACTIVITY#START                 アクティビティが開始
+     *
+     **********************************************************************************************/
+
+    @Override
+    public void onStart()
     {
-        return cls.getName();
+        Log.w(TAG,"onStart");
+
+        super.onStart();
     }
 
     /***********************************************************************************************
@@ -218,21 +255,27 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         fullScreen();
 
-        // UIがFGになった
-        mStatus.mUiForeground = true;
-
         // ステータスバーなどがあれば閉じる
         Intent intent = new Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
         sendBroadcast(intent);
 
+        if (!mAdapterEnable)
+        {
+            mPager.setAdapter(mAdapter);
+            mAdapterEnable = true;
+        }
+
         // 1ページ目
-        mPager.setCurrentItem(ViewPagerAdapter.CONTROL_POS);
+        //mPager.setCurrentItem(0);
 
         if (mBoot)
         {
             mBoot = false;
             moveToBackground();
         }
+
+        // UIがFGになった
+        mStatus.uiState(true);
 
         super.onResume();
     }
@@ -249,12 +292,30 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         Log.w(TAG,"onPause");
 
         // UIがBGに入った
-        mStatus.mUiForeground = false;
+        mStatus.uiState(false);
 
+        //mAdapter.destroyAllItem(mPager);
+
+        mPager.setAdapter(null);
+
+        mAdapterEnable = false;
 
         super.onPause();
     }
 
+    /***********************************************************************************************
+     *
+     *  ACTIVITY#STOP                  アクティビティが停止
+     *
+     **********************************************************************************************/
+
+    @Override
+    public  void onStop()
+    {
+        Log.w(TAG,"onStop");
+
+        super.onStop();
+    }
     /***********************************************************************************************
      *
      *  ACTIVITY#DESTROY                アクティビティ破棄
@@ -268,7 +329,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         super.onDestroy();
 
         // UIが完全終了した
-        mStatus.mUiActive = false;
+        mStatus.uiActive(false);
 
         // ステータス破棄
         mStatus.freeInstance();
@@ -281,32 +342,26 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         mPreference.clearCallBack();
 
-        try {
-
-            ControlFragment cf = (ControlFragment) mAdapter.getItem(ViewPagerAdapter.CONTROL_POS);
-
-            cf.setListener(null);
-
-            SettingFragment sf = (SettingFragment) mAdapter.getItem(ViewPagerAdapter.SETTING_POS);
-
-            sf.setListener(null);
-        }
-        catch (Exception e)
+        if (mAdapterEnable)
         {
-            e.printStackTrace();
+            mPager.setAdapter(null);
+
+            mAdapterEnable = false;
         }
 
         //  サービス停止するか？
         if (mServiceStop)
         {
             Log.e(TAG,"Stop AtomService");
-            String mess = getResources().getString(R.string.finish);
-
-            Toast.makeText(this, mess, Toast.LENGTH_LONG).show();
 
             stopService(mServiceIntent);
 
-            if (mRestart) reload();
+            if (!mRestart)
+            {
+                String mess = getResources().getString(R.string.finish);
+
+                Toast.makeText(this, mess, Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -396,28 +451,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 mService.UI_Ready();
             }
 
-            try
-            {
-                ControlFragment cf = (ControlFragment) mAdapter.getItem(ViewPagerAdapter.CONTROL_POS);
-
-                Log.e(TAG, "SET PREFERENCE to CONTROL");
-
-                cf.setService(mService);
-                cf.setPreference(mPreference);
-                cf.setListener(this);
-
-                SettingFragment sf = (SettingFragment) mAdapter.getItem(ViewPagerAdapter.SETTING_POS);
-
-                Log.e(TAG, "SET PREFERENCE to SETTING");
-
-                sf.setPreference(mPreference);
-                sf.setService(mService);
-                sf.setListener(this);
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
+            if (mAdapter != null) mAdapter.setService(mService);
 
             //
             // FOREGROUNDサービスに登録
@@ -425,10 +459,17 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
             if (mPreference.getPref_ForegroundService())
             {
-                mHandler.post(new Runnable() {
+                mHandler.post(new Runnable()
+                {
                     @Override
-                    public void run() {
-                        startForeground();
+                    public void run()
+                    {
+                        synchronized (mBindLock)
+                        {
+                            Log.w(TAG, "startForegroundService ");
+
+                            startForegroundService(mServiceIntent);
+                        }
                     }
                 });
             }
@@ -458,40 +499,14 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     /**********************************************************************************************
      *
-     * （内部）サービスをforegroundServiceにする
-     *
-     * 　これによりサービスはunbindしても消えない常駐サービスになる
-     *
-     **********************************************************************************************/
-
-    private void startForeground()
-    {
-        synchronized (mBindLock)
-        {
-            // 既にフォアグランドサービスに登録済みなら何もしない
-
-            //if ((mService != null) && (!mService.isForeground()))
-            {
-
-                Log.w(TAG, "startForegroundService ");
-
-                //
-                // AtomControlServiceをフォアグランドサービス登録する
-                //
-
-                startForegroundService(mServiceIntent);
-            }
-        }
-    }
-
-    /**********************************************************************************************
-     *
      * （内部）サービスをBINDする -> これでサービスエントリを取得（onServiceConnected）
      *
      **********************************************************************************************/
 
     private void doBindService()
     {
+        Log.w(TAG, "bindService ");
+
         mServiceIntent = new Intent(MainActivity.this, AtomService.class);
 
         mServiceIntent.putExtra(AtomService.KEY_pkgName, this.getPackageName());
@@ -512,6 +527,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         if (mIsServiceBind)
         {
+            Log.w(TAG, "unbindService ");
+
             // コネクションの解除
             unbindService(this);
             mIsServiceBind = false;
@@ -527,19 +544,14 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onNotify(AtomStatus.AtomInfo info)
     {
-        //Log.w(TAG, "observer#update -> update UI");
+        Log.w(TAG, "observer#update -> update UI");
 
-        ControlFragment cf = (ControlFragment) mAdapter.getItem(ViewPagerAdapter.CONTROL_POS);
-        SettingFragment sf = (SettingFragment) mAdapter.getItem(ViewPagerAdapter.SETTING_POS);
-
-        // UIの情報更新
-        if (cf != null) { cf.UI_update(info);  }
-        if (sf != null) { sf.UI_update(info);  }
+        mAdapter.notify(info);
     }
 
     /**********************************************************************************************
      *
-     * AtomStatus#OnPttLongPress    PTTのロングプレス
+     * AtomStatus#OnPttLongPress    PTTのロングプレス  from Service
      *
      * この通知はどう使っても良い
      *
@@ -567,7 +579,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     /********************************************************************************************
      *
-     * 通知バーに表示する文字列
+     * 通知バーに表示する文字列 from Service
      *
      * @param id        接続種別（テザリングON/OFF)
      *
@@ -582,26 +594,52 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return id.toString();
     }
 
+    /**********************************************************************************************
+     *
+     *  BackGround Image 選択画面の起動要求　from　ViewPager(SETTING-FRAGMENT)
+     *
+     *  PAUSE時にフラグメント側は破棄する仕様に変更したので、Activity側に本機能を移動する
+     *
+     *  破棄される側でINTENT発行すると結果（onActivityResult）が正しく取れないので、PAUSEでは
+     *  破棄されないMainActivityにファイル選択画面への切り替え機能（INTENT)を持たせる
+     *
+     *********************************************************************************************/
+
+    @Override
+    public void onPickupImage()
+    {
+        // ACTION_OPEN_DOCUMENT is the intent to choose a file via the system's file browser.
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+
+        // Filter to only show results that can be "opened", such as a
+        // file (as opposed to a list of contacts or timezones)
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+        // Filter to show only images, using the image MIME data type.
+        // it would be "*/*".
+        intent.setType("image/*");
+
+        startActivityForResult(intent, RESULT_PICK_IMAGE);
+    }
+
+    /**********************************************************************************************
+     *
+     *  画面シングルタップ from ViewPager
+     *
+     *********************************************************************************************/
+
     @Override
     public void onSingleTapUp()
     {
-
-        KeyguardManager km = (KeyguardManager) this.getSystemService(KEYGUARD_SERVICE);
-
-        if ( ! km.isKeyguardLocked())
-        {
-            Log.w(TAG,"LockScreen OFF");
-            // UIをBGに落とす　→　Activity#pause
-            moveToBackground();
-        }
-        else
-        {
-            // TODO; ロック画面の自動解除（できるのか）
-            Log.w(TAG,"LockScreen ON");
-            // UIをBGに落とす　→　Activity#pause
-            moveToBackground();
-        }
+        // UIをBGに落とす　→　Activity#pause
+        moveToBackground();
     }
+
+    /**********************************************************************************************
+     *
+     *  画面ダブルタップ from ViewPager
+     *
+     *********************************************************************************************/
 
     @Override
     public void onDoubleTap() {
@@ -616,17 +654,31 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     private void reload()
     {
-        Log.w(TAG,"reload...");
-        Intent intent = getIntent();
-        overridePendingTransition(0, 0);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-        overridePendingTransition(0, 0);
-        startActivity(intent);
+
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run()
+            {
+                Log.w(TAG,"reload...");
+
+                /*
+                Intent intent = getIntent();
+                overridePendingTransition(0, 0);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                overridePendingTransition(0, 0);
+                startActivity(intent);
+                */
+
+                recreate();
+
+            }
+        }, 1);
+
     }
 
     /**********************************************************************************************
      *
-     *  設定値が変更された
+     *  設定値が変更された  from AtomPreference
      *
      * @param key                   　変化したキー
      *
@@ -652,18 +704,135 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             {
                 mRestart     = true;
                 mServiceStop = true;
-                finish();
+                reload();
             }
         }
         else if (AtomPreference.KEY_background.equals(key))
         {
-            ControlFragment cf = (ControlFragment) mAdapter.getItem(ViewPagerAdapter.CONTROL_POS);
-            SettingFragment sf = (SettingFragment) mAdapter.getItem(ViewPagerAdapter.SETTING_POS);
+            Log.w(TAG, "Change background Image");
 
-            // UIの情報更新
-            if (cf != null) { cf.background_change();  }
-            if (sf != null) { sf.background_change();  }
+            mAdapter.backGroundImage();
+        }
+    }
 
+    /**********************************************************************************************
+     *
+     *  INTENT発行からの戻り
+     *
+     *  ・BackGround Image 選択画面からの戻り　※元画像のアスペクト維持に変更
+     *
+     * @param requestCode       要求コード
+     * @param resultCode        結果
+     * @param resultData        結果データ
+     *
+     *********************************************************************************************/
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent resultData)
+    {
+        Log.w(TAG," onActivityResult " + requestCode + " " + requestCode + " "+ resultData);
+
+        if (requestCode == RESULT_PICK_IMAGE && resultCode == RESULT_OK)
+        {
+            //
+            // 背景画像選択（ピッカー）からの戻り
+            //
+
+            int dst_height = mAdapter.mHeight;
+            int dst_width = mAdapter.mWidth;
+
+            //
+            // 壁紙サイズが不明な場合は何もしない（安全対策）
+            //
+
+            if ((dst_width == 0) || (dst_height == 0)) return;
+
+            if(resultData.getData() != null)
+            {
+                try
+                {
+                    //Log.w(TAG," Image Select Done");
+                    Uri uri = resultData.getData();
+
+                    ParcelFileDescriptor pfDescriptor = getContentResolver().openFileDescriptor(uri, "r");
+
+                    if(pfDescriptor != null)
+                    {
+                        //
+                        // bmpへ画像を読み込み
+                        //
+
+                        FileDescriptor fileDescriptor = pfDescriptor.getFileDescriptor();
+                        Bitmap src_bmp = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+
+                        //
+                        // ファイルクローズ
+                        //
+
+                        pfDescriptor.close();
+
+                        //
+                        // src_bmp: aspect Fit変換
+                        //
+
+                        if (src_bmp != null) {
+                            int srcWidth = src_bmp.getWidth();
+                            int srcHeight = src_bmp.getHeight();
+
+                            int imgWidth, imgHeight;
+
+                            // 縦と横の比率
+                            float wRatio = ((float) srcWidth) / ((float) dst_width);
+                            float hRatio = ((float) srcHeight) / ((float) dst_height);
+
+                            if (wRatio > hRatio) {
+                                // 縦比率に合わせて横を調整
+                                imgHeight = srcHeight;
+                                imgWidth = (int) (srcWidth * (hRatio / wRatio));
+                            } else {
+                                // 横比率に合わせて縦を調整
+                                imgWidth = srcWidth;
+                                imgHeight = (int) (srcHeight * (wRatio / hRatio));
+                            }
+
+                            //
+                            // センターで切り出し
+                            //
+
+                            src_bmp = Bitmap.createBitmap(src_bmp, (srcWidth - imgWidth) / 2, (srcHeight - imgHeight) / 2, imgWidth, imgHeight);
+
+
+                            //
+                            // 壁紙サイズに変換（画面サイズ）
+                            //
+
+                            Bitmap wall = Bitmap.createScaledBitmap(src_bmp, dst_width, dst_height, false);
+
+                            //
+                            // ベース６４符号化（画面が大きい場合はファイル保存しファイル名保存に変更して）
+                            //
+
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            wall.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                            String bitmapStr = Base64.encodeToString(baos.toByteArray(), Base64.DEFAULT);
+
+                            //
+                            // プリファレンスへ保存（永続化）
+                            //
+
+                            mPreference.setPref_background(bitmapStr);
+                        }
+                        else
+                        {
+                            Log.e(TAG,"invalid image-data!");
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }

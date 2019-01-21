@@ -353,7 +353,8 @@ public class AtomService extends Service
                 Log.w(TAG, "onStartCommand[" + startId + "]" + intent.getStringExtra(KEY_pkgName) + " " + intent.getStringExtra(KEY_clsName));
 
                 // ステータスを取得（UI側情報をセット）
-                mStatus = AtomStatus.shardInstance(intent.getStringExtra(KEY_pkgName), intent.getStringExtra(KEY_clsName));
+                // 参照カウンタは上げない
+                mStatus = AtomStatus.setRecovery(intent.getStringExtra(KEY_pkgName), intent.getStringExtra(KEY_clsName));
             }
 
             mServiceForeground = true;

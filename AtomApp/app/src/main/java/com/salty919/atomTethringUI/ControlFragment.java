@@ -3,6 +3,7 @@ package com.salty919.atomTethringUI;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,9 +26,6 @@ import java.util.Locale;
 
 public class ControlFragment extends FragmentBase
 {
-    @SuppressWarnings({"FieldCanBeLocal", "unused"})
-    private static final String TAG = ControlFragment.class.getSimpleName();
-
     // UI部品
     private ImageButton mWifiAPBtn              = null;
     private TextView    mConnectText            = null;
@@ -37,7 +35,18 @@ public class ControlFragment extends FragmentBase
     private TextView    mTether                 = null;
     private TextView    mTimeSec                = null;
 
+    private static int  mCnt                    = 0;
+
     //private ProgressBar mTetherBar              = null;
+
+    public ControlFragment()
+    {
+        mCnt++;
+
+        TAG =   ControlFragment.class.getSimpleName() + "["+mCnt +"]";
+
+        Log.w(TAG,"new ControlFragment ");
+    }
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
@@ -56,14 +65,20 @@ public class ControlFragment extends FragmentBase
         mPtt.setOnClickListener(mClickListener);
         mPtt.setClickable(true);
 
+        mWifiAPBtn.setClickable(false);
+
         //mTetherBar.setMax(100);
         //mTetherBar.setMin(0);
         //mTetherBar.setProgress(0,true);
 
+        Log.w(TAG,"onCreateView ");
+
+        mRunning = true;
+
+        if (mListener != null)  mListener.onReady(this);
+
         // 画面タッチを有効にする
         enableTouch(mView);
-
-        background_change();
 
         return mView;
     }
@@ -91,7 +106,8 @@ public class ControlFragment extends FragmentBase
 
     void onPreferenceAvailable()
     {
-        // 特に反映させる項目なし
+        // 背景画像変更
+        background_image();
     }
 
     /**********************************************************************************************
@@ -102,6 +118,7 @@ public class ControlFragment extends FragmentBase
 
     synchronized  void UI_update(AtomStatus.AtomInfo info)
     {
+        Log.w(TAG," UI_update "+ mRunning );
         //
         // テザリング経過時間プログレスバーの更新
         //
@@ -111,6 +128,8 @@ public class ControlFragment extends FragmentBase
         //
         // テザリング残り秒数の更新
         //
+
+        if (!mRunning) return;
 
         if (info.mTimerSec != 0)
         {
@@ -130,14 +149,14 @@ public class ControlFragment extends FragmentBase
 
         if (info.mPtt)
         {
-            mReady  = true;
+            mPttReady  = true;
 
             mPtt.setTextColor(Color.YELLOW);
             mPtt.setClickable(false);
         }
         else
         {
-            mReady  = false;
+            mPttReady  = false;
 
             mPtt.setTextColor(Color.GRAY);
             mPtt.setClickable(true);

@@ -36,11 +36,16 @@ public class AtomStatus
     //
 
     // TRUE：表示中
-    public boolean                  mUiForeground       = false;
-    // TRUE: 生成済み
-    public boolean                  mUiActive           = false;
+    boolean                         mUiForeground       = false;
 
-    public final boolean            mUiUsed             = true;
+    // TRUE: 生成済み
+    @SuppressWarnings("WeakerAccess")
+    boolean                         mUiActive           = false;
+
+    // UI必須動作（ここをFALSEにするとUI起動なしでサービス単体になるが、操作がわかりずらい
+    // falseでの動作は未検証です
+
+    final   boolean                 mUiUsed             = true;
 
     //
     // bundle key
@@ -242,7 +247,7 @@ public class AtomStatus
     // インテント発行先コンポーネント名（UI）
     //
 
-    private  ComponentName      mComponentName;
+    private  ComponentName      mComponentName  = null;
 
     //
     // シングルトンインスタンス
@@ -271,7 +276,10 @@ public class AtomStatus
     {
         AtomStatus instance = AtomStatus.shardInstance();
 
-        instance.mComponentName = new ComponentName(pkgName,className);
+        if (instance.mComponentName == null)
+        {
+            instance.mComponentName = new ComponentName(pkgName, className);
+        }
 
         return instance;
     }
@@ -286,7 +294,7 @@ public class AtomStatus
             {
                 sInstance = new AtomStatus();
 
-                Log.w(sInstance.TAG, "new AtomStatus");
+                Log.w(sInstance.TAG, "new AtomStatus ref = 1");
 
                 sInstance.reference = 1;
             }
@@ -295,6 +303,17 @@ public class AtomStatus
                 sInstance.ref();
             }
         }
+        return sInstance;
+    }
+
+
+    public static AtomStatus setRecovery(String pkgName, String className)
+    {
+        if (sInstance.mComponentName == null)
+        {
+            sInstance.mComponentName = new ComponentName(pkgName, className);
+        }
+
         return sInstance;
     }
 
@@ -309,6 +328,33 @@ public class AtomStatus
         unref();
     }
 
+    /*********************************************************************************************
+     *
+     *  UI生成/破棄     ※現状本フラグを参照する機能はない
+     *
+     * @param active    true:生成、　false:破棄
+     *
+     *********************************************************************************************/
+
+    public void uiActive(boolean active)
+    {
+        mUiActive = active;
+    }
+
+    /**********************************************************************************************
+     *
+     * UIがFG/BGを記録する
+     *
+     * @param foreground        true;FG false:BG
+     *
+     *********************************************************************************************/
+
+    public void uiState(boolean foreground)
+    {
+        mUiForeground = foreground;
+
+        if (mUiForeground) update(true);
+    }
     /**********************************************************************************************
      *
      *  ステータスの参照アップ
@@ -338,12 +384,12 @@ public class AtomStatus
 
             if (reference == 0)
             {
-                Log.w(TAG,"free AtomStatus");
+                Log.w(TAG,"free AtomStatus ref = 0");
                 sInstance = null;
             }
             else
             {
-                Log.w(TAG,"unref "+ reference);
+                Log.w(TAG,"ref "+ reference);
             }
         }
     }

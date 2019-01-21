@@ -3,6 +3,15 @@ package com.salty919.atomTethringUI;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.app.FragmentTransaction;
+import android.support.v4.view.ViewPager;
+import android.util.Log;
+import android.view.ViewGroup;
+
+import com.salty919.atomTethringService.AtomService;
+import com.salty919.atomTethringService.AtomStatus;
+
+import java.util.ArrayList;
 
 /*************************************************************************************************
  *
@@ -18,45 +27,193 @@ import android.support.v4.app.FragmentPagerAdapter;
  *
  *************************************************************************************************/
 
-public class ViewPagerAdapter extends FragmentPagerAdapter
+public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBase.Listener
 {
-    ViewPagerAdapter(FragmentManager fragmentManager)
+    public interface Listener
     {
-        super(fragmentManager);
+        void onPickupImage();
+        void onSingleTapUp();
+        void onDoubleTap();
     }
 
-    final static int       CONTROL_POS         = 0;
-    final static int       SETTING_POS         = 1;
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
+    private static final String TAG = ViewPagerAdapter.class.getSimpleName();
 
-    private ControlFragment     mControl       = null;
-    private SettingFragment     mSetting       = null;
+    private final FragmentManager           mFragmentManager;
+    private final Listener                  mListener;
+    private final ArrayList<FragmentBase>   mItemList;
+    private int                             mItemCnt;
+    private AtomPreference                  mPreference;
+    private AtomService                     mService = null;
+
+    int                                     mWidth  = 0;
+    int                                     mHeight = 0;
+
+    /**********************************************************************************************
+     *
+     *  コンストラクタ
+     *
+     * @param fragmentManager       フラグメントマネージャ
+     * @param listener              リスナー
+     *
+     *********************************************************************************************/
+
+    ViewPagerAdapter(FragmentManager fragmentManager, AtomPreference preference, Listener listener)
+    {
+        super(fragmentManager);
+
+        Log.e(TAG, "new Adapter");
+
+        mFragmentManager    = fragmentManager;
+        mListener           = listener;
+        mItemList           = new ArrayList<>();
+        mPreference         = preference;
+
+        //
+        // Page0: ControlFragment
+        //
+
+        mItemList.add(new ControlFragment());
+
+        //
+        // Page1: SettingFragment
+        //
+
+        mItemList.add(new SettingFragment());
+
+        mItemCnt    = 2;
+    }
+
+    /**********************************************************************************************
+     *
+     * ページャに登録された全フラグメントを開放する
+     *
+     * @param pager   ぺーじゃ
+     *
+     *********************************************************************************************/
+
+    @SuppressWarnings("unused")
+    void destroyAllItem(ViewPager pager)
+    {
+        for (int pos = 0; pos < getCount() ; pos++)
+        {
+            FragmentBase fragment=  (FragmentBase) this.instantiateItem(pager, pos);
+            fragment.setListener(null);
+            destroyItem(pager, pos, fragment);
+        }
+    }
+
+    /**********************************************************************************************
+     *
+     * UI情報更新通知
+     *
+     * @param info  各種情報構造
+     *
+     *********************************************************************************************/
+
+    void notify(AtomStatus.AtomInfo info)
+    {
+        for (FragmentBase fragment:mItemList )
+        {
+            fragment.UI_update(info);
+        }
+    }
+
+    /**********************************************************************************************
+     *
+     * 背景画像の変更通知
+     *
+     *********************************************************************************************/
+
+    void backGroundImage()
+    {
+        for (FragmentBase fragment:mItemList )
+        {
+            fragment.background_image();
+        }
+    }
+
+    /**********************************************************************************************
+     *
+     * サービスのセット
+     *
+     *********************************************************************************************/
+
+    void setService(AtomService service)
+    {
+        mService = service;
+
+        for (FragmentBase fragment:mItemList )
+        {
+            fragment.setService(service);
+        }
+    }
 
     @Override
     public Fragment getItem(int position)
     {
-        Fragment fragment = null;
+        FragmentBase fragment = mItemList.get(position);
 
-        switch (position)
-        {
-            case CONTROL_POS:
+        Log.w(TAG," add   ["+position+"] " + fragment.TAG);
 
-                if (mControl == null) mControl = new ControlFragment();
-                fragment = mControl;
-                break;
+        fragment.setListener(this);
 
-            case SETTING_POS:
-
-                if (mSetting == null) mSetting = new SettingFragment();
-                fragment = mSetting;
-                break;
-        }
         return fragment;
     }
 
     @Override
     public int getCount()
     {
-        return 2;
+        return  mItemCnt;
     }
 
+    @Override
+    public void destroyItem(ViewGroup container, int position, Object object)
+    {
+        super.destroyItem(container, position, object);
+
+        if (position <getCount())
+        {
+            Log.w(TAG," remove[ "+position +"] "+ ((FragmentBase) object).TAG );
+
+            FragmentTransaction trans = mFragmentManager.beginTransaction();
+            trans.remove((Fragment) object);
+            trans.commit();
+        }
+    }
+
+    @Override
+    public void onReady(FragmentBase fragment)
+    {
+        Log.w(TAG,"onReady "+ fragment.TAG);
+
+        fragment.setPreference(mPreference);
+        fragment.setService(mService);
+    }
+
+    @Override
+    public void onLayoutFix(int width, int height)
+    {
+        mWidth = width;
+        mHeight = height;
+    }
+
+    @Override
+    public void onPickupImage()
+    {
+        mListener.onPickupImage();
+    }
+
+    @Override
+    public void onSingleTapUp()
+    {
+
+        mListener.onSingleTapUp();
+    }
+
+    @Override
+    public void onDoubleTap()
+    {
+        mListener.onDoubleTap();
+    }
 }
