@@ -34,6 +34,13 @@ public class ControlFragment extends FragmentBase
     private TextView    mPtt                    = null;
     private TextView    mTether                 = null;
     private TextView    mTimeSec                = null;
+    private TextView    mExtraInfo              = null;
+    private TextView    mCell                   = null;
+    private TextView    mWifi                   = null;
+    private TextView    mBlue                   = null;
+    private TextView    mUsb                    = null;
+    private TextView    mVpn                    = null;
+    private TextView    mWap                    = null;
 
     private static int  mCnt                    = 0;
 
@@ -60,17 +67,19 @@ public class ControlFragment extends FragmentBase
         mPtt            = mView.findViewById(R.id.accessibility);
         mTether         = mView.findViewById(R.id.tethering);
         mTimeSec        = mView.findViewById(R.id.timer);
-        //mTetherBar      = view.findViewById(R.id.tetheringBar);
+        mExtraInfo      = mView.findViewById(R.id.extraInfo);
+
+        mCell           = mView.findViewById(R.id.bcell);
+        mWifi           = mView.findViewById(R.id.bwifi);
+        mBlue           = mView.findViewById(R.id.bblue);
+        mUsb            = mView.findViewById(R.id.busb);
+        mWap            = mView.findViewById(R.id.bap);
+        mVpn            = mView.findViewById(R.id.bvpn);
 
         mPtt.setOnClickListener(mClickListener);
         mPtt.setClickable(true);
 
         mWifiAPBtn.setClickable(false);
-
-        //mTetherBar.setMax(100);
-        //mTetherBar.setMin(0);
-        //mTetherBar.setProgress(0,true);
-
         Log.w(TAG,"onCreateView ");
 
         mRunning = true;
@@ -175,6 +184,60 @@ public class ControlFragment extends FragmentBase
             mTether.setTextColor(Color.GRAY);
         }
 
+        if (info.mCell)
+        {
+            mCell.setTextColor(Color.YELLOW);
+        }
+        else
+        {
+            mCell.setTextColor(Color.GRAY);
+        }
+
+        if (info.mWifi)
+        {
+            mWifi.setTextColor(Color.YELLOW);
+        }
+        else
+        {
+            mWifi.setTextColor(Color.GRAY);
+        }
+
+        if (info.mBluetooth)
+        {
+            mBlue.setTextColor(Color.YELLOW);
+        }
+        else
+        {
+            mBlue.setTextColor(Color.GRAY);
+        }
+
+        if (info.mUsb)
+        {
+            mUsb.setTextColor(Color.YELLOW);
+        }
+        else
+        {
+            mUsb.setTextColor(Color.GRAY);
+        }
+
+        if (info.mVpn)
+        {
+            mVpn.setTextColor(Color.YELLOW);
+        }
+        else
+        {
+            mVpn.setTextColor(Color.GRAY);
+        }
+
+        if (info.mWap)
+        {
+            mWap.setTextColor(Color.YELLOW);
+        }
+        else
+        {
+            mWap.setTextColor(Color.GRAY);
+        }
+
         //
         // バッテリ残量
         //
@@ -184,6 +247,8 @@ public class ControlFragment extends FragmentBase
             String levelStr = String.format(Locale.JAPANESE, "%d", info.mBatteryLevel);
             mBattery.setText(levelStr);
         }
+
+        mIpText.setText(info.mIp);
 
         //
         // 回線状態
@@ -196,7 +261,7 @@ public class ControlFragment extends FragmentBase
             mWifiAPBtn.setBackgroundResource(R.drawable.mobile_style);
             mWifiAPBtn.setImageResource(R.drawable.ic_sharp_signal_cellular_alt_24px);
             mConnectText.setText(R.string.moble);
-            mIpText.setText(info.mIp);
+
         }
         else if (info.mType == ConnectionType.TETHER)
         {
@@ -205,7 +270,6 @@ public class ControlFragment extends FragmentBase
             mWifiAPBtn.setBackgroundResource(R.drawable.tether_style);
             mWifiAPBtn.setImageResource(R.drawable.ic_sharp_wifi_tethering_24px);
             mConnectText.setText(R.string.tether);
-            mIpText.setText(info.mIp);
         }
         else if (info.mType == ConnectionType.WIFI)
         {
@@ -214,7 +278,22 @@ public class ControlFragment extends FragmentBase
             mWifiAPBtn.setBackgroundResource(R.drawable.wifiap_style);
             mWifiAPBtn.setImageResource(R.drawable.ic_sharp_wifi_24px);
             mConnectText.setText(R.string.wifi);
-            mIpText.setText(info.mIp);
+        }
+        else if (info.mType == ConnectionType.BTOOTH)
+        {
+            // BT接続中
+
+            mWifiAPBtn.setBackgroundResource(R.drawable.bt_style);
+            mWifiAPBtn.setImageResource(R.drawable.ic_baseline_bluetooth_connected_24px);
+            mConnectText.setText(R.string.bluetooth);
+        }
+        else if (info.mType == ConnectionType.VPN)
+        {
+            // VPN接続中
+
+            mWifiAPBtn.setBackgroundResource(R.drawable.vpn_style);
+            mWifiAPBtn.setImageResource(R.drawable.ic_baseline_vpn_lock_24px);
+            mConnectText.setText(R.string.vpn);
         }
         else
         {
@@ -224,6 +303,17 @@ public class ControlFragment extends FragmentBase
             mWifiAPBtn.setImageResource(R.drawable.ic_sharp_error_outline_24px);
             mConnectText.setText(R.string.none);
             mIpText.setText(R.string.noAddr);
+        }
+
+        if (info.mSubType.equals(""))
+        {
+            mExtraInfo.setText(info.mExtraInfo);
+        }
+        else
+        {
+            String extraText = info.mSubType + " : " + info.mExtraInfo;
+
+            mExtraInfo.setText(extraText);
         }
     }
 }

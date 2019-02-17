@@ -2,6 +2,9 @@
     <string name="app_name">Atom Service</string>
     <string name="connection">CONNECTION</string>
     <string name="wifi">WIFI</string>
+    <string name="bluetooth">BLUETOOTH</string>
+    <string name="ether">ETHER-NET</string>
+    <string name="vpn">PRIVATE-NET</string>
     <string name="none">DISCONNECT</string>
     <string name="tether">TETHERING</string>
     <string name="moble">MOBILE</string>
@@ -25,4 +28,11 @@
     <string name="bootup">AtomTethering boot-up complete</string>
     <string name="wallpaper">BackGround Image</string>
     <string name="clear">No-BG</string>
+    <string name="bcell">CEL</string>
+    <string name="bwifi">WIF</string>
+    <string name="bvpn">VPN</string>
+    <string name="bblue">BLT</string>
+    <string name="busb">USB</string>
+    <string name="bap">WAP</string>
+
 </resources>

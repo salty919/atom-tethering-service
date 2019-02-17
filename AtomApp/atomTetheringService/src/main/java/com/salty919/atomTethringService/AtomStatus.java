@@ -39,7 +39,7 @@ public class AtomStatus
     boolean                         mUiForeground       = false;
 
     // TRUE: 生成済み
-    @SuppressWarnings("WeakerAccess")
+    @SuppressWarnings({"WeakerAccess", "unused"})
     boolean                         mUiActive           = false;
 
     // UI必須動作（ここをFALSEにするとUI起動なしでサービス単体になるが、操作がわかりずらい
@@ -100,14 +100,28 @@ public class AtomStatus
         // 接続タイプ
         public ConnectionType       mType           = ConnectionType.NONE;
 
+        // 接続付加情報
+        @SuppressWarnings("WeakerAccess")
+        public String               mExtraInfo      = "";
+
+        @SuppressWarnings("WeakerAccess")
+        public  String              mSubType        = "";
+
         // 接続IPアドレス（V4）
         public String               mIp             = "";
+
+        public String               mDevice         = "";
 
         // バッテリーレベル(0..100)
         public int                  mBatteryLevel   = -1;
 
         // テザリング状態 true:テザリング中
-        public boolean              mWifiApFromWM   = false;
+        public boolean              mWap            = false;
+        public boolean              mCell           = false;
+        public boolean              mWifi           = false;
+        public boolean              mVpn            = false;
+        public boolean              mBluetooth      = false;
+        public boolean              mUsb            = false;
 
         public boolean              mPtt            = false;
 
@@ -126,9 +140,19 @@ public class AtomStatus
             {
                 mTether         = info.mTether;
                 mType           = info.mType;
+                mExtraInfo      = info.mExtraInfo;
+                mSubType        = info.mSubType;
+                mDevice         = info.mDevice;
                 mIp             = info.mIp;
                 mBatteryLevel   = info.mBatteryLevel;
-                mWifiApFromWM   = info.mWifiApFromWM;
+
+                mWap            = info.mWap;
+                mCell           = info.mCell;
+                mWifi           = info.mWifi;
+                mBluetooth      = info.mBluetooth;
+                mUsb            = info.mUsb;
+                mVpn            = info.mVpn;
+
                 mPtt            = info.mPtt;
                 mTimerRatio     = info.mTimerRatio;
                 mTimerSec       = info.mTimerSec;
@@ -136,9 +160,17 @@ public class AtomStatus
                 Log.w(TAG, "---------------------------------------------");
                 Log.w(TAG, "TETHER [" + mName + "] " + mTether);
                 Log.w(TAG, "CTYPE  [" + mName + "] " + mType);
+                Log.w(TAG, "EXTINF [" + mName + "] " + mExtraInfo);
+                Log.w(TAG, "STYPE  [" + mName + "] " + mSubType);
+                Log.w(TAG, "DEVICE [" + mName + "] " + mDevice);
                 Log.w(TAG, "IPADDR [" + mName + "] " + mIp);
                 Log.w(TAG, "BATLEV [" + mName + "] " + mBatteryLevel);
-                Log.w(TAG, "WIFIWP [" + mName + "] " + mWifiApFromWM);
+                Log.w(TAG, "WIFIWP [" + mName + "] " + mWap);
+                Log.w(TAG, "CELLUR [" + mName + "] " + mCell);
+                Log.w(TAG, "WIFI   [" + mName + "] " + mWifi);
+                Log.w(TAG, "BLUETH [" + mName + "] " + mBluetooth);
+                Log.w(TAG, "USBTH  [" + mName + "] " + mUsb);
+                Log.w(TAG, "VPN    [" + mName + "] " + mVpn);
                 Log.w(TAG, "PTTACC [" + mName + "] " + mPtt);
                 Log.w(TAG, "TIMERT [" + mName + "] " + mTimerRatio);
                 Log.w(TAG, "TIMESC [" + mName + "] " + mTimerSec);
@@ -171,10 +203,29 @@ public class AtomStatus
                         Log.e(TAG, "CTYPE  [" + mName + "] " + mType.mStr + " <= " + info.mType.mStr);
                     }
 
+                    if (!info.mExtraInfo.equals(mExtraInfo))
+                    {
+                        valid = false;
+                        Log.e(TAG, "EXINF  [" + mName + "] " + mExtraInfo + " <= " + info.mExtraInfo);
+                    }
+
+                    if (!info.mSubType.equals(mSubType))
+                    {
+                        valid = false;
+
+                        Log.e(TAG, "STYPE  [" + mName + "] " + mSubType + " <= " + info.mSubType);
+                    }
+
                     if (!info.mIp.equals(mIp))
                     {
                         valid = false;
                         Log.e(TAG, "IPADDR [" + mName + "] " + mIp + " <= " + info.mIp);
+                    }
+
+                    if (!info.mDevice.equals(mDevice))
+                    {
+                        valid = false;
+                        Log.e(TAG, "DEVICE [" + mName + "] " + mDevice + " <= " + info.mDevice);
                     }
 
                     if (info.mBatteryLevel != mBatteryLevel)
@@ -183,10 +234,40 @@ public class AtomStatus
                         Log.e(TAG, "BATLEV [" + mName + "] " + mBatteryLevel + " <= " + info.mBatteryLevel);
                     }
 
-                    if (info.mWifiApFromWM != mWifiApFromWM)
+                    if (info.mWap != mWap)
                     {
                         valid = false;
-                        Log.e(TAG, "WIFIAP [" + mName + "] " + mWifiApFromWM + " <= " + info.mWifiApFromWM);
+                        Log.e(TAG, "WIFIAP [" + mName + "] " + mWap + " <= " + info.mWap);
+                    }
+
+                    if (info.mCell != mCell)
+                    {
+                        valid = false;
+                        Log.e(TAG, "CELLUR [" + mName + "] " + mCell+ " <= " + info.mCell);
+                    }
+
+                    if (info.mWifi != mWifi)
+                    {
+                        valid = false;
+                        Log.e(TAG, "WIFI   [" + mName + "] " + mWifi + " <= " + info.mWifi);
+                    }
+
+                    if (info.mBluetooth != mBluetooth)
+                    {
+                        valid = false;
+                        Log.e(TAG, "BLUETH [" + mName + "] " + mBluetooth + " <= " + info.mBluetooth);
+                    }
+
+                    if (info.mUsb != mUsb)
+                    {
+                        valid = false;
+                        Log.e(TAG, "USBTH  [" + mName + "] " + mUsb + " <= " + info.mUsb);
+                    }
+
+                    if (info.mVpn != mVpn)
+                    {
+                        valid = false;
+                        Log.e(TAG, "VPN    [" + mName + "] " + mVpn + " <= " + info.mVpn);
                     }
 
                     if (info.mPtt != mPtt)

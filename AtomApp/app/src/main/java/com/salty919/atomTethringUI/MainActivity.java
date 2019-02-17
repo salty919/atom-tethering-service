@@ -25,7 +25,6 @@ import com.salty919.atomTethringService.AtomStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
-import java.io.IOException;
 
 /*************************************************************************************************
  *
@@ -511,6 +510,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         mServiceIntent.putExtra(AtomService.KEY_pkgName, this.getPackageName());
         mServiceIntent.putExtra(AtomService.KEY_clsName, getClassName(MainActivity.class));
+        mServiceIntent.putExtra(AtomService.KEY_version, BuildConfig.VERSION_NAME);
 
         bindService(mServiceIntent,this, Context.BIND_AUTO_CREATE);
 

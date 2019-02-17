@@ -12,6 +12,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -46,13 +48,18 @@ public class AtomService extends Service
 
     public static final String     KEY_pkgName = "packageName";
     public static final String     KEY_clsName = "className";
+    public static final String     KEY_version = "uiVersion";
 
     @SuppressWarnings("unused")
     private static final String      ACTION_PTT_UP   = "android.intent.action.PTT.up";
     private static final String      ACTION_PTT_DOWN = "android.intent.action.PTT.down";
 
     @SuppressWarnings("FieldCanBeLocal")
-    private final String title = "AtomTethering v"+BuildConfig.VERSION_NAME;
+    private final String title = "AtomTethering ";
+    @SuppressWarnings("FieldCanBeLocal")
+    private final String serviceVersion = BuildConfig.VERSION_NAME;
+
+    private String uiVersion = null;
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String channelId = "Atom-service-channel";
@@ -63,6 +70,25 @@ public class AtomService extends Service
     private long    mPressLongPress     = 500;
 
     private notifyMessage  mNotifyId    = notifyMessage.NOTIFY_NOTING;
+
+    private final String  mCell         = "ccmni";
+    private String        mCellIp       = "";
+
+    private final String  mWifi         = "wlan";
+    private String        mWifiIp       = "";
+
+    private final String  mBlue         = "bt-pan";
+    private String        mBlueIp       = "";
+
+    private final String  mUsb          = "rndis";
+    private String        mUsbIp        = "";
+
+    private final String  mVpn          = "ppp";
+    private String        mVpnIp        = "";
+
+    private final String  mWap          = "ap";
+    private String        mWapIp        = "";
+
 
     private boolean isBackGroundUI()  {return (!mStatus.mUiUsed) || (!mStatus.mUiForeground); }
     /**********************************************************************************************
@@ -176,12 +202,6 @@ public class AtomService extends Service
     //--------------------------------------------------------------------------------------
 
     private AtomStatus          mStatus         = null;
-
-    //-------------------------------------------------------------------------------------
-    // 強制監視
-    //-------------------------------------------------------------------------------------
-
-    private boolean             mForceCallback  = true;
 
     //--------------------------------------------------------------------------------------
     // テザリング制御
@@ -352,6 +372,8 @@ public class AtomService extends Service
 
                 Log.w(TAG, "onStartCommand[" + startId + "]" + intent.getStringExtra(KEY_pkgName) + " " + intent.getStringExtra(KEY_clsName));
 
+                uiVersion = intent.getStringExtra(KEY_version);
+
                 // ステータスを取得（UI側情報をセット）
                 // 参照カウンタは上げない
                 mStatus = AtomStatus.setRecovery(intent.getStringExtra(KEY_pkgName), intent.getStringExtra(KEY_clsName));
@@ -422,7 +444,7 @@ public class AtomService extends Service
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, mIntent, PendingIntent.FLAG_CANCEL_CURRENT );
 
         Notification notification = new Notification.Builder(getApplicationContext(), channelId)
-                .setContentTitle(title)
+                .setContentTitle(title+" v"+uiVersion+"."+serviceVersion)
                 .setSmallIcon(mNotifyIconResource)
                 .setContentIntent(pendingIntent)
                 .setLargeIcon(BitmapFactory.decodeResource(getResources(),mNotifyIconResource))
@@ -622,10 +644,6 @@ public class AtomService extends Service
                 {
                     if (mStatus != null)
                     {
-                        AtomStatus.AtomInfo info = mStatus.getInfo();
-                        info.mWifiApFromWM = mWAp.isWifiAccessPoint();
-                        mStatus.update();
-
                         startConnectionCheckCycle();
                     }
                 }
@@ -858,74 +876,116 @@ public class AtomService extends Service
             synchronized (mServiceLock)
             {
                 AtomStatus.AtomInfo info = mStatus.getInfo();
-
                 ConnectivityManager conn = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
-                NetworkInfo networkInfo = Objects.requireNonNull(conn).getActiveNetworkInfo();
-
-                ConnectionType connectionType = info.mType;
+                Network network = Objects.requireNonNull(conn).getActiveNetwork();
+                NetworkCapabilities capabilities = conn.getNetworkCapabilities(network);
+                NetworkInfo networkInfo  = Objects.requireNonNull(conn).getActiveNetworkInfo();
 
                 if (networkInfo != null)
                 {
-                    String ip = _getLocalIpV4Address();
+                    String extraInf = networkInfo.getExtraInfo();
+                    String subtype  = networkInfo.getSubtypeName();
 
-                    //if ((ip != null) && (!ip.equals(info.mIp)))
+                    //
+                    // 空文字はNULLにする
+                    //
+
+                    if ((extraInf != null) && (extraInf.equals(""))) extraInf = null;
+                    if ((subtype  != null) && (subtype.equals("")))  subtype  = null;
+
                     {
-                        info.mIp = ip;
+                        mCellIp         = _getLocalIpV4Address(mCell);
+                        info.mCell      = !mCellIp.equals("");
 
-                        int type = networkInfo.getType();
+                        mWifiIp         = _getLocalIpV4Address(mWifi);
+                        info.mWifi      = !mWifiIp.equals("");
 
-                        if (type == ConnectivityManager.TYPE_WIFI)
+                        mBlueIp         = _getLocalIpV4Address(mBlue);
+                        info.mBluetooth = !mBlueIp.equals("");
+
+                        mUsbIp          = _getLocalIpV4Address(mUsb);
+                        info.mUsb       = !mUsbIp.equals("");
+
+                        mVpnIp          = _getLocalIpV4Address(mVpn);
+                        info.mVpn       = !mVpnIp.equals("");
+
+                        mWapIp          = _getLocalIpV4Address(mWap);
+                        info.mWap       = !mWapIp.equals("");
+
+                    }
+
+                    //
+                    // 接続タイプ別文字列設定（現状は１つのトランスポートのみ）
+                    //
+
+                    if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+                    {
+                        info.mIp        = mWifiIp;
+                        info.mType      = ConnectionType.WIFI;
+                        info.mExtraInfo = (extraInf != null) ? extraInf : "";
+                        info.mSubType   = (subtype  != null) ? subtype  : "SSID";
+
+                    }
+                    else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
+                    {
+                        info.mIp        = mCellIp;
+                        info.mType      = ConnectionType.MOBILE;
+                        info.mExtraInfo = (extraInf != null) ? extraInf : "";
+                        info.mSubType   = (subtype  != null) ? subtype  : "";
+                    }
+                    else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH))
+                    {
+                        info.mIp        = mBlueIp;
+                        info.mType      = ConnectionType.BTOOTH;
+                        info.mExtraInfo = (extraInf != null) ? extraInf : "BLT-Line sharing";
+                        info.mSubType   = (subtype  != null) ? subtype  : "BLUE";
+                    }
+                    else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN))
+                    {
+                        info.mIp        = mVpnIp;
+                        info.mType      = ConnectionType.VPN;
+                        info.mExtraInfo = (extraInf != null) ? extraInf : "";
+                        info.mSubType   = (subtype  != null) ? subtype  :"VPN";
+                    }
+                }
+                else
+                {
+                    // 回線なし
+
+                    info.mIp        = "";
+                    info.mExtraInfo = "";
+                    info.mSubType   = "";
+                    info.mDevice    = "";
+                    info.mType      = ConnectionType.NONE;
+                }
+
+                //
+                // 通知バーの更新
+                //
+
+                if (!info.mWap)
+                {
+                    if (phase <= 1)
+                    {
+                        if (info.mTether)
                         {
-                            connectionType = ConnectionType.WIFI;
-
-                            if (info.mTether)
-                            {
-                                startForeground(notifyMessage.NOTIFY_TETHER_OFF);
-                                info.mTether = false;
-                            }
-                        }
-                        else if (type == ConnectivityManager.TYPE_MOBILE)
-                        {
-                            if (info.mWifiApFromWM)
-                            {
-                                connectionType = ConnectionType.TETHER;
-                                if (!info.mTether) startForeground(notifyMessage.NOTIFY_TETHER_ON);
-                                info.mTether = true;
-
-                            }
-                            else
-                            {
-                                connectionType = ConnectionType.MOBILE;
-
-                                if (phase <= 1)
-                                {
-                                    if (info.mTether) startForeground(notifyMessage.NOTIFY_TETHER_OFF);
-                                    info.mTether = false;
-                                }
-                            }
+                            startForeground(notifyMessage.NOTIFY_TETHER_OFF);
+                            tetherOff();
+                            info.mTether = false;
                         }
                     }
                 }
                 else
                 {
-                    if ((info.mTether)&& (phase <= 1) && (!info.mWifiApFromWM))
+                    info.mType          = ConnectionType.TETHER;
+
+                    if (!info.mTether)
                     {
-                        startForeground(notifyMessage.NOTIFY_TETHER_OFF);
-                        info.mTether = false;
+                        startForeground(notifyMessage.NOTIFY_TETHER_ON);
+                        info.mTether        = true;
                     }
-
-                    info.mIp = "";
-                    connectionType = ConnectionType.NONE;
                 }
-
-                if ((mForceCallback) || (info.mType != connectionType))
-                {
-                    Log.w(TAG, connectionType.mStr + " " + info.mIp);
-                    info.mType = connectionType;
-                }
-
-                mForceCallback = false;
 
                 mStatus.update();
 
@@ -946,7 +1006,7 @@ public class AtomService extends Service
      *
      *********************************************************************************************/
 
-    private String _getLocalIpV4Address()
+    private String _getLocalIpV4Address(String deviceName)
     {
         try
         {
@@ -960,7 +1020,12 @@ public class AtomService extends Service
 
                     if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address)
                     {
-                        return inetAddress.getHostAddress();
+                        Log.w(TAG,"["+deviceName+"] IP:" + inetAddress + " "+ nif.getDisplayName() + " "+ nif.getName());
+                        if (deviceName.equals("") || nif.getName().contains(deviceName))
+                        {
+                            Log.e(TAG,"["+deviceName+"] IP:" + inetAddress + " "+ nif.getDisplayName() + " "+ nif.getName());
+                            return inetAddress.getHostAddress();
+                        }
                     }
                 }
             }
@@ -970,7 +1035,7 @@ public class AtomService extends Service
             Log.e(TAG, ex.toString());
         }
 
-        return null;
+        return "";
     }
 
     /**********************************************************************************************

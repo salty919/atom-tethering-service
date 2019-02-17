@@ -74,7 +74,7 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:layout_marginStart="23dp"
-        android:layout_marginTop="330dp"
+        android:layout_marginTop="320dp"
         android:text="@string/connection"
         android:textColor="@android:color/holo_blue_bright" />
 
@@ -90,16 +90,25 @@
         android:textSize="30sp" />
 
     <TextView
+        android:id="@+id/extraInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/connect"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="-20dp"
+        android:text="none"
+        android:textColor="@color/white" />
+
+    <TextView
         android:id="@+id/address_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignStart="@+id/connect_title"
         android:layout_alignParentTop="true"
         android:layout_marginStart="0dp"
-        android:layout_marginTop="440dp"
+        android:layout_marginTop="430dp"
         android:text="@string/address"
         android:textColor="@android:color/holo_blue_bright" />
-
 
     <TextView
         android:id="@+id/ipaddress"
@@ -111,6 +120,83 @@
         android:text="@string/noAddr"
         android:textColor="@android:color/background_light"
         android:textSize="30sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="10dp"
+        android:gravity="center_vertical|center_horizontal">
+
+        <TextView
+            android:id="@+id/bcell"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/bcell"
+            android:textColor="@android:color/background_light" />
+
+        <TextView
+            android:id="@+id/bwifi"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/bwifi"
+            android:textColor="@android:color/background_light" />
+        <TextView
+            android:id="@+id/bvpn"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/bvpn"
+            android:textColor="@android:color/background_light" />
+
+        <TextView
+            android:id="@+id/bblue"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/bblue"
+            android:textColor="@android:color/background_light" />
+        <TextView
+            android:id="@+id/busb"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/busb"
+            android:textColor="@android:color/background_light" />
+        <TextView
+            android:id="@+id/bap"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/frame_style"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/bap"
+            android:textColor="@android:color/background_light" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/battery"
@@ -159,9 +245,11 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:layout_marginStart="25dp"
-        android:layout_marginTop="290dp"
-        android:text="dd"
+        android:layout_marginTop="280dp"
+        android:text="05:10"
         android:textColor="@android:color/background_light"
         android:textSize="18sp" />
+
+
 
 </RelativeLayout>
