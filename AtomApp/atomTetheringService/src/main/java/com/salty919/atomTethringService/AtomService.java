@@ -42,24 +42,22 @@ import java.util.Objects;
  *
  *************************************************************************************************/
 
+@SuppressWarnings("FieldCanBeLocal")
 public class AtomService extends Service
 {
     private static final String TAG = AtomService.class.getSimpleName();
 
-    public static final String     KEY_pkgName = "packageName";
-    public static final String     KEY_clsName = "className";
-    public static final String     KEY_version = "uiVersion";
+    public static final String      KEY_pkgName     = "packageName";
+    public static final String      KEY_clsName     = "className";
+    public static final String      KEY_version     = "uiVersion";
 
     @SuppressWarnings("unused")
-    private static final String      ACTION_PTT_UP   = "android.intent.action.PTT.up";
-    private static final String      ACTION_PTT_DOWN = "android.intent.action.PTT.down";
+    private static final String     ACTION_PTT_UP   = "android.intent.action.PTT.up";
+    private static final String     ACTION_PTT_DOWN = "android.intent.action.PTT.down";
 
-    @SuppressWarnings("FieldCanBeLocal")
-    private final String title = "AtomTethering ";
-    @SuppressWarnings("FieldCanBeLocal")
+    private final String title          = "AtomTethering ";
     private final String serviceVersion = BuildConfig.VERSION_NAME;
-
-    private String uiVersion = null;
+    private String uiVersion            = null;
 
     @SuppressWarnings("FieldCanBeLocal")
     private final String channelId = "Atom-service-channel";
@@ -69,26 +67,27 @@ public class AtomService extends Service
     private int     mPressKeyCode       = 286;
     private long    mPressLongPress     = 500;
 
-    private notifyMessage  mNotifyId    = notifyMessage.NOTIFY_NOTING;
+    private notifyMessage   mNotifyId   = notifyMessage.NOTIFY_NOTING;
 
-    private final String  mCell         = "ccmni";
-    private String        mCellIp       = "";
+    private String          mCell       = "ccmni";
+    public  String          mCellIp     = "";
 
-    private final String  mWifi         = "wlan";
-    private String        mWifiIp       = "";
+    private String          mWifi       = "wlan";
+    public  String          mWifiIp     = "";
 
-    private final String  mBlue         = "bt-pan";
-    private String        mBlueIp       = "";
+    private String          mBlue       = "bt-pan";
+    public  String          mBlueIp     = "";
 
-    private final String  mUsb          = "rndis";
-    private String        mUsbIp        = "";
+    private String          mUsb        = "rndis";
+    public  String          mUsbIp      = "";
 
-    private final String  mVpn          = "ppp";
-    private String        mVpnIp        = "";
+    private String          mVpn        = "ppp";
+    public  String          mVpnIp      = "";
 
-    private final String  mWap          = "ap";
-    private String        mWapIp        = "";
+    private String          mWap        = "ap";
+    public  String          mWapIp      = "";
 
+    private String          mDeviceName = "";
 
     private boolean isBackGroundUI()  {return (!mStatus.mUiUsed) || (!mStatus.mUiForeground); }
     /**********************************************************************************************
@@ -860,6 +859,17 @@ public class AtomService extends Service
         }
     }
 
+    private String _deviceName(String name)
+    {
+        try
+        {
+            return name.substring(0, name.length() - 1);
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
+    }
 
     /***********************************************************************************************
      *
@@ -881,6 +891,8 @@ public class AtomService extends Service
                 Network network = Objects.requireNonNull(conn).getActiveNetwork();
                 NetworkCapabilities capabilities = conn.getNetworkCapabilities(network);
                 NetworkInfo networkInfo  = Objects.requireNonNull(conn).getActiveNetworkInfo();
+
+                info.mMainOut = ConnectionType.NONE;
 
                 if (networkInfo != null)
                 {
@@ -921,30 +933,58 @@ public class AtomService extends Service
 
                     if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
                     {
+                        if (mWifiIp.equals(""))
+                        {
+                            mWifiIp     = _getLocalIpV4Address("");
+                            mWifi       = _deviceName(mDeviceName);
+                        }
+
                         info.mIp        = mWifiIp;
                         info.mType      = ConnectionType.WIFI;
+                        info.mMainOut   = ConnectionType.WIFI;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "";
                         info.mSubType   = (subtype  != null) ? subtype  : "SSID";
 
                     }
                     else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
                     {
+                        if (mCellIp.equals(""))
+                        {
+                            mCellIp     = _getLocalIpV4Address("");
+                            mCell       = _deviceName(mDeviceName);
+                        }
+
                         info.mIp        = mCellIp;
                         info.mType      = ConnectionType.MOBILE;
+                        info.mMainOut   = ConnectionType.MOBILE;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "";
                         info.mSubType   = (subtype  != null) ? subtype  : "";
                     }
                     else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH))
                     {
+                        if (mBlueIp.equals(""))
+                        {
+                            mBlueIp     = _getLocalIpV4Address("");
+                            mBlue       = _deviceName(mDeviceName);
+                        }
+
                         info.mIp        = mBlueIp;
                         info.mType      = ConnectionType.BTOOTH;
+                        info.mMainOut   = ConnectionType.BTOOTH;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "BLT-Line sharing";
                         info.mSubType   = (subtype  != null) ? subtype  : "BLUE";
                     }
                     else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN))
                     {
+                        if (mVpnIp.equals(""))
+                        {
+                            mVpnIp     = _getLocalIpV4Address("");
+                            mVpn       = _deviceName(mDeviceName);
+                        }
+
                         info.mIp        = mVpnIp;
                         info.mType      = ConnectionType.VPN;
+                        info.mMainOut   = ConnectionType.VPN;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "";
                         info.mSubType   = (subtype  != null) ? subtype  :"VPN";
                     }
@@ -952,6 +992,20 @@ public class AtomService extends Service
                 else
                 {
                     // 回線なし
+
+                    info.mCell      = false;
+                    info.mWifi      = false;
+                    info.mBluetooth = false;
+                    info.mUsb       = false;
+                    info.mVpn       = false;
+                    info.mWap       = false;
+
+                    mCellIp         = "";
+                    mWifiIp         = "";
+                    mBlueIp         = "";
+                    mUsbIp          = "";
+                    mVpnIp          = "";
+                    mWapIp          = "";
 
                     info.mIp        = "";
                     info.mExtraInfo = "";
@@ -1010,6 +1064,8 @@ public class AtomService extends Service
     {
         try
         {
+            mDeviceName = "";
+
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
 
                 NetworkInterface nif = en.nextElement();
@@ -1020,10 +1076,10 @@ public class AtomService extends Service
 
                     if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address)
                     {
-                        Log.w(TAG,"["+deviceName+"] IP:" + inetAddress + " "+ nif.getDisplayName() + " "+ nif.getName());
                         if (deviceName.equals("") || nif.getName().contains(deviceName))
                         {
-                            Log.e(TAG,"["+deviceName+"] IP:" + inetAddress + " "+ nif.getDisplayName() + " "+ nif.getName());
+                            Log.e(TAG,"["+deviceName+"] IP:" + inetAddress + " "+ _deviceName(nif.getName()) + " "+ nif.getName());
+                            mDeviceName = nif.getName();
                             return inetAddress.getHostAddress();
                         }
                     }

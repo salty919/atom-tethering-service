@@ -186,55 +186,99 @@ public class ControlFragment extends FragmentBase
 
         if (info.mCell)
         {
-            mCell.setTextColor(Color.YELLOW);
+            if (info.mMainOut == ConnectionType.MOBILE)
+            {
+                mCell.setBackgroundResource(R.drawable.conect_style);
+                mCell.setTextColor(Color.BLACK);
+            }
+            else
+            {
+                mCell.setBackgroundResource(R.drawable.device_style);
+                mCell.setTextColor(Color.YELLOW);
+            }
         }
         else
         {
+            mCell.setBackgroundResource(R.drawable.device_style);
             mCell.setTextColor(Color.GRAY);
         }
 
         if (info.mWifi)
         {
-            mWifi.setTextColor(Color.YELLOW);
+            if (info.mMainOut == ConnectionType.WIFI)
+            {
+                mWifi.setBackgroundResource(R.drawable.conect_style);
+                mWifi.setTextColor(Color.BLACK);
+            }
+            else
+            {
+                mWifi.setBackgroundResource(R.drawable.device_style);
+                mWifi.setTextColor(Color.YELLOW);
+            }
         }
         else
         {
+            mWifi.setBackgroundResource(R.drawable.device_style);
             mWifi.setTextColor(Color.GRAY);
         }
 
         if (info.mBluetooth)
         {
-            mBlue.setTextColor(Color.YELLOW);
+            if (info.mMainOut == ConnectionType.BTOOTH)
+            {
+                mBlue.setBackgroundResource(R.drawable.conect_style);
+                mBlue.setTextColor(Color.BLACK);
+            }
+            else
+            {
+                mBlue.setBackgroundResource(R.drawable.device_style);
+                mBlue.setTextColor(Color.YELLOW);
+            }
         }
         else
         {
+            mBlue.setBackgroundResource(R.drawable.device_style);
             mBlue.setTextColor(Color.GRAY);
         }
 
         if (info.mUsb)
         {
+            mUsb.setBackgroundResource(R.drawable.device_style);
             mUsb.setTextColor(Color.YELLOW);
         }
         else
         {
+            mUsb.setBackgroundResource(R.drawable.device_style);
             mUsb.setTextColor(Color.GRAY);
         }
 
         if (info.mVpn)
         {
-            mVpn.setTextColor(Color.YELLOW);
+            if (info.mMainOut == ConnectionType.VPN)
+            {
+                mVpn.setBackgroundResource(R.drawable.conect_style);
+                mVpn.setTextColor(Color.BLACK);
+            }
+            else
+            {
+                mVpn.setBackgroundResource(R.drawable.device_style);
+                mVpn.setTextColor(Color.YELLOW);
+            }
         }
         else
         {
+            mVpn.setBackgroundResource(R.drawable.device_style);
             mVpn.setTextColor(Color.GRAY);
         }
 
         if (info.mWap)
         {
+            mWap.setBackgroundResource(R.drawable.device_style);
             mWap.setTextColor(Color.YELLOW);
         }
         else
         {
+            mWap.setBackgroundResource(R.drawable.device_style);
             mWap.setTextColor(Color.GRAY);
         }
 

@@ -97,8 +97,10 @@ public class AtomStatus
         // テザリング要求の有無（外部から実行もある）
         public boolean              mTether         = false;
 
+
         // 接続タイプ
         public ConnectionType       mType           = ConnectionType.NONE;
+        public ConnectionType       mMainOut        = ConnectionType.NONE;
 
         // 接続付加情報
         @SuppressWarnings("WeakerAccess")
@@ -115,7 +117,7 @@ public class AtomStatus
         // バッテリーレベル(0..100)
         public int                  mBatteryLevel   = -1;
 
-        // テザリング状態 true:テザリング中
+        // 出力IF     true:
         public boolean              mWap            = false;
         public boolean              mCell           = false;
         public boolean              mWifi           = false;
@@ -140,6 +142,7 @@ public class AtomStatus
             {
                 mTether         = info.mTether;
                 mType           = info.mType;
+                mMainOut        = info.mMainOut;
                 mExtraInfo      = info.mExtraInfo;
                 mSubType        = info.mSubType;
                 mDevice         = info.mDevice;
@@ -160,6 +163,7 @@ public class AtomStatus
                 Log.w(TAG, "---------------------------------------------");
                 Log.w(TAG, "TETHER [" + mName + "] " + mTether);
                 Log.w(TAG, "CTYPE  [" + mName + "] " + mType);
+                Log.w(TAG, "MOUT   [" + mName + "] " + mMainOut );
                 Log.w(TAG, "EXTINF [" + mName + "] " + mExtraInfo);
                 Log.w(TAG, "STYPE  [" + mName + "] " + mSubType);
                 Log.w(TAG, "DEVICE [" + mName + "] " + mDevice);
@@ -201,6 +205,12 @@ public class AtomStatus
                     {
                         valid = false;
                         Log.e(TAG, "CTYPE  [" + mName + "] " + mType.mStr + " <= " + info.mType.mStr);
+                    }
+
+                    if (info.mMainOut != mMainOut)
+                    {
+                        valid = false;
+                        Log.e(TAG, "MOUT   [" + mName + "] " + mMainOut + " <= " + info.mMainOut);
                     }
 
                     if (!info.mExtraInfo.equals(mExtraInfo))

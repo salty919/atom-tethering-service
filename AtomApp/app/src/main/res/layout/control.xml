@@ -135,10 +135,9 @@
             android:layout_marginStart="5dp"
             android:layout_marginEnd="2dp"
             android:layout_weight="1"
-            android:background="@drawable/frame_style"
+            android:background="@drawable/device_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/bcell"
-            android:textColor="@android:color/background_light" />
+            android:text="@string/bcell" />
 
         <TextView
             android:id="@+id/bwifi"
@@ -147,10 +146,9 @@
             android:layout_marginStart="2dp"
             android:layout_marginEnd="2dp"
             android:layout_weight="1"
-            android:background="@drawable/frame_style"
+            android:background="@drawable/device_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/bwifi"
-            android:textColor="@android:color/background_light" />
+            android:text="@string/bwifi" />
         <TextView
             android:id="@+id/bvpn"
             android:layout_width="wrap_content"
@@ -158,10 +156,9 @@
             android:layout_marginStart="2dp"
             android:layout_marginEnd="2dp"
             android:layout_weight="1"
-            android:background="@drawable/frame_style"
+            android:background="@drawable/device_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/bvpn"
-            android:textColor="@android:color/background_light" />
+            android:text="@string/bvpn" />
 
         <TextView
             android:id="@+id/bblue"
@@ -170,10 +167,9 @@
             android:layout_marginStart="2dp"
             android:layout_marginEnd="2dp"
             android:layout_weight="1"
-            android:background="@drawable/frame_style"
+            android:background="@drawable/device_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/bblue"
-            android:textColor="@android:color/background_light" />
+            android:text="@string/bblue"/>
         <TextView
             android:id="@+id/busb"
             android:layout_width="wrap_content"
@@ -181,10 +177,9 @@
             android:layout_marginStart="2dp"
             android:layout_marginEnd="2dp"
             android:layout_weight="1"
-            android:background="@drawable/frame_style"
+            android:background="@drawable/device_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/busb"
-            android:textColor="@android:color/background_light" />
+            android:text="@string/busb" />
         <TextView
             android:id="@+id/bap"
             android:layout_width="wrap_content"
@@ -192,10 +187,9 @@
             android:layout_marginStart="2dp"
             android:layout_marginEnd="5dp"
             android:layout_weight="1"
-            android:background="@drawable/frame_style"
+            android:background="@drawable/device_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/bap"
-            android:textColor="@android:color/background_light" />
+            android:text="@string/bap" />
     </LinearLayout>
 
     <TextView
