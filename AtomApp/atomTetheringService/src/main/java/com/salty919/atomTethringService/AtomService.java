@@ -12,9 +12,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
+import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
+import android.net.RouteInfo;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
@@ -74,6 +76,8 @@ public class AtomService extends Service
     private class Nif_device
     {
         String      mIp;
+        int         mMask;
+        String      mBroadcast;
         String      mDeviceName;
         boolean     mFound;
     }
@@ -888,6 +892,21 @@ public class AtomService extends Service
         }
     }
 
+    /*********************************************************************************************
+     *
+     * @param linkProperties    リンク情報
+     * @return true デフォルトルート
+     *
+     ********************************************************************************************/
+
+    private static boolean hasDefaultRoute(LinkProperties linkProperties) {
+        for(RouteInfo route: linkProperties.getRoutes()) {
+            if (route.isDefaultRoute()) {
+                return true;
+            }
+        }
+        return false;
+    }
     /***********************************************************************************************
      *
      *  コネクション取得
@@ -903,18 +922,22 @@ public class AtomService extends Service
             synchronized (mServiceLock)
             {
                 AtomStatus.AtomInfo info = mStatus.getInfo();
-                ConnectivityManager conn = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
-                Network network = Objects.requireNonNull(conn).getActiveNetwork();
-                NetworkCapabilities capabilities = conn.getNetworkCapabilities(network);
-                NetworkInfo networkInfo  = Objects.requireNonNull(conn).getActiveNetworkInfo();
+                ConnectivityManager conn        = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo         networkInfo = Objects.requireNonNull(conn).getActiveNetworkInfo();
+                Network             gateway     = Objects.requireNonNull(conn).getActiveNetwork();
+                NetworkCapabilities gatewayCap  = conn.getNetworkCapabilities(gateway);
 
                 info.mMainOut = ConnectionType.NONE;
 
                 if (networkInfo != null)
                 {
-                    String extraInf = networkInfo.getExtraInfo();
-                    String subtype  = networkInfo.getSubtypeName();
+                    //
+                    // 回線付加情報
+                    //
+
+                    String              extraInf        = networkInfo.getExtraInfo();
+                    String              subtype         = networkInfo.getSubtypeName();
 
                     //
                     // 空文字はNULLにする
@@ -934,97 +957,108 @@ public class AtomService extends Service
                     // 回線毎のIPアドレスを取得
                     //
 
+                    mCellIp         = _getLocalIpV4Address(mIpv4List, mCell);
+                    mWifiIp         = _getLocalIpV4Address(mIpv4List, mWifi);
+                    mBlueIp         = _getLocalIpV4Address(mIpv4List, mBlue);
+                    mUsbIp          = _getLocalIpV4Address(mIpv4List, mUsb);
+                    mWapIp          = _getLocalIpV4Address(mIpv4List, mWap);
+                    mVpnIp          = _getLocalIpV4Address(mIpv4List, mVpn);
+
+                    if (mVpnIp.equals(""))      mVpnIp  = _getLocalIpV4Address(mIpv4List, mVpn2);
+                    if (mCellIp.equals(""))     mCellIp = _getLocalIpV4Address(mIpv4List, mCell_tmp);
+                    if (mWifiIp.equals(""))     mWifiIp = _getLocalIpV4Address(mIpv4List, mWifi_tmp);
+                    if (mBlueIp.equals(""))     mBlueIp = _getLocalIpV4Address(mIpv4List, mBlue_tmp);
+                    if (mVpnIp.equals(""))      mVpnIp  = _getLocalIpV4Address(mIpv4List, mVpn_tmp);
+
+                    info.mCell      = !Objects.requireNonNull(mCellIp).equals("");
+                    info.mWifi      = !Objects.requireNonNull(mWifiIp).equals("");
+                    info.mBluetooth = !Objects.requireNonNull(mBlueIp).equals("");
+                    info.mUsb       = !Objects.requireNonNull(mUsbIp).equals("");
+                    info.mVpn       = !Objects.requireNonNull(mVpnIp).equals("");
+                    info.mWap       = !Objects.requireNonNull(mWapIp).equals("");
+
+                    //
+                    // ゲートウェイアドレス
+                    //
+
+                    if (gateway != null)
                     {
-                        mCellIp         = _getLocalIpV4Address(mIpv4List, mCell);
-                        mWifiIp         = _getLocalIpV4Address(mIpv4List, mWifi);
-                        mBlueIp         = _getLocalIpV4Address(mIpv4List, mBlue);
-                        mUsbIp          = _getLocalIpV4Address(mIpv4List, mUsb);
-                        mWapIp          = _getLocalIpV4Address(mIpv4List, mWap);
-                        mVpnIp          = _getLocalIpV4Address(mIpv4List, mVpn);
+                        LinkProperties linkProperties = conn.getLinkProperties(gateway);
 
-                        if (mVpnIp.equals(""))      mVpnIp  = _getLocalIpV4Address(mIpv4List, mVpn2);
-                        if (mCellIp.equals(""))     mCellIp = _getLocalIpV4Address(mIpv4List, mCell_tmp);
-                        if (mWifiIp.equals(""))     mWifiIp = _getLocalIpV4Address(mIpv4List, mWifi_tmp);
-                        if (mBlueIp.equals(""))     mBlueIp = _getLocalIpV4Address(mIpv4List, mBlue_tmp);
-                        if (mVpnIp.equals(""))      mVpnIp  = _getLocalIpV4Address(mIpv4List, mVpn_tmp);
-
-                        info.mCell      = !Objects.requireNonNull(mCellIp).equals("");
-                        info.mWifi      = !Objects.requireNonNull(mWifiIp).equals("");
-                        info.mBluetooth = !Objects.requireNonNull(mBlueIp).equals("");
-                        info.mUsb       = !Objects.requireNonNull(mUsbIp).equals("");
-                        info.mVpn       = !Objects.requireNonNull(mVpnIp).equals("");
-                        info.mWap       = !Objects.requireNonNull(mWapIp).equals("");
-
+                        if (linkProperties != null)
+                        {
+                            if (hasDefaultRoute(linkProperties))
+                            {
+                                mDeviceName = linkProperties.getInterfaceName();
+                                info.mIp = _getLocalIpV4Address(mIpv4List, linkProperties.getInterfaceName());
+                            }
+                        }
                     }
 
                     //
                     // 接続タイプ別文字列設定（現状は１つのトランスポートのみ）
                     //
 
-                    if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
+                    if (gatewayCap.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
                     {
                         Log.w(TAG,"TRANSPORT_CELLULAR");
 
                         if (mCellIp.equals(""))
                         {
-                            mCellIp = _getLocalIpV4Address(mIpv4List, "");
-                            if (!mCellIp.equals("")) mCell_tmp = _deviceName(mDeviceName);
+                            mCellIp     = info.mIp;
+                            mCell_tmp   = _deviceName(mDeviceName);
                         }
 
-                        info.mIp        = mCellIp;
+                        info.mCell      = true;
                         info.mType      = ConnectionType.MOBILE;
                         info.mMainOut   = ConnectionType.MOBILE;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "";
                         info.mSubType   = (subtype != null) ? subtype : "";
                     }
-
-                    if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+                    else if (gatewayCap.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
                     {
                         Log.w(TAG,"TRANSPORT_WIFI");
 
                         if (mWifiIp.equals(""))
                         {
-                            mWifiIp     = _getLocalIpV4Address(mIpv4List,"");
-                            if (!mWifiIp.equals("")) mWifi_tmp   = _deviceName(mDeviceName);
+                            mWifiIp     = info.mIp;
+                            mWifi_tmp   = _deviceName(mDeviceName);
                         }
 
-                        info.mIp        = mWifiIp;
+                        info.mWifi      = true;
                         info.mType      = ConnectionType.WIFI;
                         info.mMainOut   = ConnectionType.WIFI;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "";
                         info.mSubType   = (subtype  != null) ? subtype  : "SSID";
 
                     }
-
-                    if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH))
+                    else if (gatewayCap.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH))
                     {
                         Log.w(TAG,"TRANSPORT_BLUETOOTH");
 
                         if (mBlueIp.equals(""))
                         {
-                            mBlueIp     = _getLocalIpV4Address(mIpv4List,"");
-                            if (!mBlueIp.equals("")) mBlue_tmp   = _deviceName(mDeviceName);
+                            mBlueIp     = info.mIp;
+                            mBlue_tmp   = _deviceName(mDeviceName);
                         }
 
-                        info.mIp        = mBlueIp;
+                        info.mBluetooth = true;
                         info.mType      = ConnectionType.BTOOTH;
                         info.mMainOut   = ConnectionType.BTOOTH;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "BLT-Line sharing";
                         info.mSubType   = (subtype  != null) ? subtype  : "BLUE";
                     }
-
-                    if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN))
+                    else if (gatewayCap.hasTransport(NetworkCapabilities.TRANSPORT_VPN))
                     {
                         Log.w(TAG,"TRANSPORT_VPN");
 
                         if (mVpnIp.equals(""))
                         {
-                            mVpnIp     = _getLocalIpV4Address(mIpv4List,"");
-
-                            if (!mVpnIp.equals("")) mVpn_tmp   = _deviceName(mDeviceName);
+                            mVpnIp     = info.mIp;
+                            mVpn_tmp   = _deviceName(mDeviceName);
                         }
 
-                        info.mIp        = mVpnIp;
+                        info.mVpn       = true;
                         info.mType      = ConnectionType.VPN;
                         info.mMainOut   = ConnectionType.VPN;
                         info.mExtraInfo = (extraInf != null) ? extraInf : "";
@@ -1055,7 +1089,6 @@ public class AtomService extends Service
                     info.mExtraInfo = "";
                     info.mSubType   = "";
                     info.mDevice    = "";
-                    info.mType      = ConnectionType.NONE;
                 }
 
                 //
@@ -1109,20 +1142,15 @@ public class AtomService extends Service
 
     private String _getLocalIpV4Address(List<Nif_device> deviceList, String deviceName)
     {
-
-        mDeviceName = null;
-
         if ((deviceName == null) || (deviceList == null)) return "";
 
         for(Nif_device device: deviceList)
         {
-            if (device.mFound) continue;
+            if (deviceName.equals("")&&(device.mFound)) continue;
 
             if (deviceName.equals("") || device.mDeviceName.contains(deviceName))
             {
                 device.mFound = true;
-
-                mDeviceName = device.mDeviceName;
 
                 return device.mIp;
             }
@@ -1152,6 +1180,7 @@ public class AtomService extends Service
 
                 NetworkInterface nif = en.nextElement();
 
+                int pos = 0;
                 for (Enumeration<InetAddress> enumIpAdder = nif.getInetAddresses(); enumIpAdder.hasMoreElements();) {
 
                     InetAddress inetAddress = enumIpAdder.nextElement();
@@ -1162,6 +1191,12 @@ public class AtomService extends Service
 
                         device.mDeviceName      = nif.getName();
                         device.mIp              = inetAddress.getHostAddress();
+                        device.mMask            = nif.getInterfaceAddresses().get(pos).getNetworkPrefixLength();
+
+                        InetAddress broadcast = nif.getInterfaceAddresses().get(pos).getBroadcast();
+
+                        if (broadcast != null)  device.mBroadcast = broadcast.getHostAddress();
+                        else                    device.mBroadcast = null;
 
                         if (device.mIp == null) device.mIp = "";
                         if (device.mDeviceName == null) device.mDeviceName = "";
@@ -1170,10 +1205,12 @@ public class AtomService extends Service
 
                         deviceList.add(device);
 
-                        Log.e(TAG,"["+index+"] IP:" + inetAddress + " "+ _deviceName(nif.getName()) + " "+ nif.getName());
+                        Log.e(TAG,"["+index+"] IP:" + device.mIp  + "/"+device.mMask +" "+device.mBroadcast + " " + _deviceName(nif.getName()) + " "+ nif.getName());
 
                         index++;
                     }
+
+                    pos++;
                 }
             }
         }
