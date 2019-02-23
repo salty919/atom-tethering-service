@@ -928,6 +928,7 @@ public class AtomService extends Service
                 Network             gateway     = Objects.requireNonNull(conn).getActiveNetwork();
                 NetworkCapabilities gatewayCap  = conn.getNetworkCapabilities(gateway);
 
+                info.mType    = ConnectionType.NONE;
                 info.mMainOut = ConnectionType.NONE;
 
                 if (networkInfo != null)
