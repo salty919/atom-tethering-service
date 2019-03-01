@@ -19,6 +19,7 @@
     <string name="finish">Atom Service: stop service </string>
     <string name="info">INFORMATION</string>
     <string name="setting">SETTING</string>
+    <string name="device">DEVICE info</string>
     <string name="activate">FG SERVICE</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
@@ -34,5 +35,7 @@
     <string name="bblue">BLT</string>
     <string name="busb">USB</string>
     <string name="bap">WAP</string>
-
+    <string name="dummyaddr">255.255.255.255</string>
+    <string name="dummydev">nifname</string>
+    <string name="nobcast">no broadcast</string>
 </resources>

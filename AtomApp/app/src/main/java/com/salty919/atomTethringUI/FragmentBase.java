@@ -118,7 +118,11 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
      *
      *********************************************************************************************/
 
-    void setService(AtomService service)  {  mService = service; }
+    void setService(AtomService service)
+    {
+        Log.w(TAG,"setService");
+        mService = service;
+    }
 
     /**********************************************************************************************
      *
@@ -152,6 +156,7 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
 
     void setListener(Listener listener)
     {
+        Log.w(TAG,"setListener");
         mListener = listener;
     }
 

@@ -45,7 +45,7 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
     private int                             mItemCnt;
     private AtomPreference                  mPreference;
     private AtomService                     mService = null;
-
+    private AtomStatus.AtomInfo             mInfo   = null;
     int                                     mWidth  = 0;
     int                                     mHeight = 0;
 
@@ -81,7 +81,13 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
 
         mItemList.add(new SettingFragment());
 
-        mItemCnt    = 2;
+        //
+        // Page2: DeviceFragment
+        //
+
+        mItemList.add(new DeviceFragment());
+
+        mItemCnt    = 3;
     }
 
     /**********************************************************************************************
@@ -113,6 +119,8 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
 
     void notify(AtomStatus.AtomInfo info)
     {
+        mInfo = info;
+
         for (FragmentBase fragment:mItemList )
         {
             fragment.UI_update(info);
@@ -189,6 +197,7 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
 
         fragment.setPreference(mPreference);
         fragment.setService(mService);
+        if (mInfo != null) fragment.UI_update(mInfo);
     }
 
     @Override

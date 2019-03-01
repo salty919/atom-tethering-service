@@ -3,14 +3,15 @@ package com.salty919.atomTethringService;
 @SuppressWarnings("SpellCheckingInspection")
 public enum ConnectionType
 {
-    NONE    (0, "NO-CONNECTION" ),
+    NONE    (0, "NO" ),
     WIFI    (1, "WIFI"          ),
     MOBILE  (2, "MOBILE"        ),
     TETHER  (3, "TETHER"        ),
-    BTOOTH  (4, "BLUETOOTH"     ),
+    BTOOTH  (4, "BTOOTH"        ),
     ETHER   (5, "ETHER"         ),
     VPN     (6, "VPN"           ),
-    OTHER   (7, "OTHER"         );
+    USB     (7, "USB"           ),
+    OTHER   (8, "OTHER"         );
 
     final String mStr;
     @SuppressWarnings("unused")
@@ -20,6 +21,11 @@ public enum ConnectionType
     {
         mStr = str;
         mId  = id;
+    }
+
+    public String toString()
+    {
+        return mStr;
     }
 
     @SuppressWarnings("unused")
