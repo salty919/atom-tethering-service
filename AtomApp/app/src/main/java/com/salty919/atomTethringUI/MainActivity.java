@@ -4,6 +4,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -14,6 +16,7 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Base64;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -165,6 +168,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             mBoot = false;
         }
 
+        adjustFontScale(1.30f);
+
         // プリファレンス管理生成＆コールバック登録
         mPreference = new AtomPreference(getApplicationContext());
 
@@ -223,6 +228,24 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         doBindService();
     }
 
+    public void adjustFontScale(float scale)
+    {
+        Resources res = this.getResources();
+        Configuration configuration = res.getConfiguration();
+
+        if (scale != configuration.fontScale)
+        {
+            Log.w(TAG, "fontScale = " + configuration.fontScale + " -> " + scale);
+
+            configuration.fontScale = scale;
+            DisplayMetrics metrics = getResources().getDisplayMetrics();
+            WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+            wm.getDefaultDisplay().getMetrics(metrics);
+            metrics.scaledDensity = configuration.fontScale * metrics.density;
+            res.updateConfiguration(configuration, metrics);
+        }
+    }
+
     /***********************************************************************************************
      *
      *  ACTIVITY#START                 アクティビティが開始
@@ -247,6 +270,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     public void onResume()
     {
         Log.w(TAG,"onResume");
+
 
         //---------------------------------------------------------
         // FULL SCREEN
