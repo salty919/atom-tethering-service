@@ -460,10 +460,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 long[] timeArray = {0, 5 * 60 * 1000L, 15 * 60 * 1000L};
                 mService.setTimeArray(timeArray);
 
-                // PTTキーコード(286) とロングプレス時間を登録
-                mService.setKeyCode(286);
-                mService.setLongPressMsec(500);
-
                 // 通知バーに表示するアイコン
                 mService.setNotifyIconResource(R.mipmap.ic_launcher);
 
@@ -588,6 +584,17 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         if (!stopServiceDebug)
         {
+
+            /*
+            // インテントのインスタンス生成
+            Intent intent = new Intent();
+            // インテントにアクションをセット
+            intent.setAction("android.media.action.VIDEO_CAMERA");
+            // カメラアプリ起動
+            startActivity(intent);
+            */
+
+            // 終了
             moveToBackground();
         }
         else

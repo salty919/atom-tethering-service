@@ -18,17 +18,21 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.net.RouteInfo;
 import android.net.Uri;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
+
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -68,8 +72,11 @@ public class AtomService extends Service
 
     private Intent  mIntent             = null;
 
-    private int     mPressKeyCode       = 286;
-    private long    mPressLongPress     = 500;
+    @SuppressWarnings("FieldCanBeLocal")
+    private int         mPressKeyCode   = 0;
+
+    @SuppressWarnings("FieldCanBeLocal")
+    private final long    mPressLongPress       = 500;
 
     private notifyMessage   mNotifyId   = notifyMessage.NOTIFY_NOTING;
 
@@ -104,25 +111,6 @@ public class AtomService extends Service
     private String          mDeviceName = "";
 
     private boolean isBackGroundUI()  {return (!mStatus.mUiUsed) || (!mStatus.mUiForeground); }
-    /**********************************************************************************************
-     *
-     * PTT KEYCODEのセット
-     *
-     * @param code      PTTキーコード
-     *
-     *********************************************************************************************/
-
-    public  void setKeyCode(int code ) { mPressKeyCode = code;}
-
-    /**********************************************************************************************
-     *
-     *  PTT LONGプレス検知時間
-     *
-     * @param msec  長押し時間（ミリ秒）
-     *
-     *********************************************************************************************/
-
-    public  void setLongPressMsec(long msec) { mPressLongPress = msec; }
 
     /**********************************************************************************************
      *
@@ -153,6 +141,7 @@ public class AtomService extends Service
 
         /** 初期文字列取得　*/
 
+        @SuppressWarnings("NullableProblems")
         public String toString() { return mStr; }
     }
 
@@ -339,6 +328,14 @@ public class AtomService extends Service
 
         Log.w(TAG, "onCreate");
 
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O_MR1)
+        {
+            mPressKeyCode = 287;
+        }
+        else
+        {
+            mPressKeyCode = 286;
+        }
         //-------------------------------------------------------
         // SYSTEM-SETTING PERMISSION (only one time)
         //-------------------------------------------------------
@@ -541,10 +538,10 @@ public class AtomService extends Service
             // ユーザ補助と接続
             //------------------------------------------------------
 
-            Log.w(TAG,"connect Accessibility");
+            Log.w(TAG,"connect Accessibility ");
 
-            AtomAccessibility.mLongPressMsec = mPressLongPress;
-            AtomAccessibility.mPttCode       = mPressKeyCode;
+            AtomAccessibility.mLongPressMsec    = mPressLongPress;
+            AtomAccessibility.mPttCode          = mPressKeyCode;
 
             AtomAccessibility.setListener(mPressListener);
 
@@ -573,6 +570,8 @@ public class AtomService extends Service
 
             //registerReceiver(mPttIntentReceiver, new IntentFilter(ACTION_PTT_UP));
             registerReceiver(mPttIntentReceiver, new IntentFilter(ACTION_PTT_DOWN));
+
+            registerReceiver(mDozeReceiver, new IntentFilter(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED));
         }
     }
 
@@ -606,17 +605,17 @@ public class AtomService extends Service
         @Override
         public void onReceive(Context context, Intent intent)
         {
-            //Log.w(TAG," PTT INTENT ["+ mPttIntentEnable + "]" + intent);
-
             String action = intent.getAction();
 
             if (action == null) return;
 
             if (action.equals(ACTION_PTT_DOWN))
             {
+
                 synchronized (mServiceLock)
                 {
-                    if (isBackGroundUI())
+
+                    if ((enablePTTIntentInSleep()) && (isBackGroundUI()))
                     {
                         appForeground(Intent.FLAG_ACTIVITY_NEW_TASK);
                     }
@@ -624,6 +623,19 @@ public class AtomService extends Service
             }
         }
     };
+
+    private boolean enablePTTIntentInSleep()
+    {
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O_MR1)
+        {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+
+            return pm.isInteractive();
+        }
+
+        return true;
+    }
 
     //------------------------------------------------------------------------------
     // コネクション監視レシーバー
@@ -706,6 +718,18 @@ public class AtomService extends Service
         }
     };
 
+    private  int mDozeCnt = 0;
+    private final BroadcastReceiver mDozeReceiver = new BroadcastReceiver()
+    {
+        @Override
+        public void onReceive(Context context, Intent intent)
+        {
+            PowerManager powerManager = context.getSystemService(PowerManager.class);
+            boolean isDoze = powerManager.isDeviceIdleMode();
+            mDozeCnt++;
+            Log.e(TAG, "isDoze: " + isDoze + " "+mDozeCnt);
+        }
+    };
 
     //----------------------------------------------------------------------
     // ユーザ補助コールバック
@@ -875,8 +899,10 @@ public class AtomService extends Service
 
     /**********************************************************************************************
      *
-     * @param name
-     * @return
+     * デバイス名の末尾の番号を除いた部分を戻す（番号は１桁前提）
+     *
+     * @param name  デバイス名　xxxx0
+     * @return xxxxx
      *
      *********************************************************************************************/
 
@@ -1025,6 +1051,13 @@ public class AtomService extends Service
                         {
                             mWifiIp     = info.mIp;
                             mWifi_tmp   = _deviceName(mDeviceName);
+                        }
+
+                        if(extraInf == null)
+                        {
+                            WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+                            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+                            extraInf = wifiInfo.getSSID();
                         }
 
                         info.mWifi      = true;

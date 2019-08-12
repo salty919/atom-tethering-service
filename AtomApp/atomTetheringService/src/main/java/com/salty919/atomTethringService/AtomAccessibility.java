@@ -154,12 +154,17 @@ public class AtomAccessibility extends AccessibilityService
     {
         synchronized (mLock)
         {
+            //Log.w(TAG,"KEY "+ e.getKeyCode());
+
             if (mListener != null)
             {
-                if (e.getKeyCode() == mPttCode)
+                int code = e.getKeyCode();
+
+                if (code == mPttCode)
                 {
                     if (e.getAction() == ACTION_DOWN)
                     {
+
                         pressPtt(true);
                     }
                     else
