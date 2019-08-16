@@ -212,7 +212,7 @@ public class AtomAccessibility extends AccessibilityService
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event)
     {
-        Log.w(TAG, "onAccessibilityEvent");
+        Log.w(TAG, "onAccessibilityEvent "+  event.getEventType());
     }
 
     /**********************************************************************************************
@@ -233,7 +233,7 @@ public class AtomAccessibility extends AccessibilityService
      *
      *********************************************************************************************/
 
-    private final Runnable  mForegroundCancel = new Runnable()
+    private final Runnable  mPttLongPressTimer = new Runnable()
     {
         @Override
         public void run()
@@ -289,7 +289,7 @@ public class AtomAccessibility extends AccessibilityService
                 if (mPttPress)
                 {
                     mLongPressStart = true;
-                    mPttHandler.postDelayed(mForegroundCancel, mLongPressMsec);
+                    mPttHandler.postDelayed(mPttLongPressTimer, mLongPressMsec);
                 }
             }
         }
@@ -306,7 +306,7 @@ public class AtomAccessibility extends AccessibilityService
                 if (mLongPressStart)
                 {
                     mLongPressStart = false;
-                    mPttHandler.removeCallbacks(mForegroundCancel);
+                    mPttHandler.removeCallbacks(mPttLongPressTimer);
                 }
 
                 //

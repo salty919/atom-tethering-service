@@ -50,7 +50,7 @@ import java.util.Objects;
  *
  *************************************************************************************************/
 
-@SuppressWarnings("FieldCanBeLocal")
+@SuppressWarnings("ALL")
 public class AtomService extends Service
 {
     private static final String TAG = AtomService.class.getSimpleName();
@@ -58,6 +58,8 @@ public class AtomService extends Service
     public static final String      KEY_pkgName     = "packageName";
     public static final String      KEY_clsName     = "className";
     public static final String      KEY_version     = "uiVersion";
+    @SuppressWarnings("SpellCheckingInspection")
+    public static final String      KEY_pttwakeup   = "pttwakeup";
 
     @SuppressWarnings("unused")
     private static final String     ACTION_PTT_UP   = "android.intent.action.PTT.up";
@@ -88,6 +90,7 @@ public class AtomService extends Service
     private String          mCell_tmp   = null;
     private String          mCellIp     = "";
 
+    @SuppressWarnings("SpellCheckingInspection")
     private final String    mWifi       = "wlan";
     private String          mWifi_tmp   = null;
     private String          mWifiIp     = "";
@@ -96,6 +99,7 @@ public class AtomService extends Service
     private String          mBlue_tmp   = null;
     private String          mBlueIp     = "";
 
+    @SuppressWarnings("SpellCheckingInspection")
     private final String    mUsb        = "rndis";
     private String          mUsbIp      = "";
 
@@ -109,6 +113,8 @@ public class AtomService extends Service
     private String          mWapIp      = "";
 
     private String          mDeviceName = "";
+
+    private boolean         mPttWakeup  = true;
 
     private boolean isBackGroundUI()  {return (!mStatus.mUiUsed) || (!mStatus.mUiForeground); }
 
@@ -168,6 +174,10 @@ public class AtomService extends Service
         /**  PTTのロングプレス通知（ユーザ側で自由に使ってよい）  */
 
         void   OnPttLongPress();
+
+        void   OnScreenOn();
+
+        void   OnScreenOff();
     }
 
     private Listener    mListener;
@@ -380,9 +390,11 @@ public class AtomService extends Service
                 // -> サービスが異常終了した場合、OSによるサービス再起動が起こるので
                 //   　本バンドル情報を元にUI層へのインテント情報を格納する
 
-                Log.w(TAG, "onStartCommand[" + startId + "]" + intent.getStringExtra(KEY_pkgName) + " " + intent.getStringExtra(KEY_clsName));
+                Log.w(TAG, "onStartCommand[" + startId + "]" + intent.getStringExtra(KEY_pkgName) + " " + intent.getStringExtra(KEY_clsName)
+                        + " PTT " + intent.getBooleanExtra(KEY_pttwakeup, true));
 
-                uiVersion = intent.getStringExtra(KEY_version);
+                uiVersion   = intent.getStringExtra(KEY_version);
+                mPttWakeup  = intent.getBooleanExtra(KEY_pttwakeup,true);
 
                 // ステータスを取得（UI側情報をセット）
                 // 参照カウンタは上げない
@@ -475,10 +487,13 @@ public class AtomService extends Service
     @Override
     public IBinder onBind(Intent intent)
     {
-        Log.w(TAG, "onBind " + intent.getStringExtra(KEY_pkgName) + " " + intent.getStringExtra(KEY_clsName));
+        Log.w(TAG, "onBind " + intent.getStringExtra(KEY_pkgName) + " " + intent.getStringExtra(KEY_clsName)
+                    + " PTT " + intent.getBooleanExtra(KEY_pttwakeup, true));
 
         synchronized (mServiceLock)
         {
+            mPttWakeup = intent.getBooleanExtra(KEY_pttwakeup,true);
+
             registerReceivers();
         }
 
@@ -572,6 +587,10 @@ public class AtomService extends Service
             registerReceiver(mPttIntentReceiver, new IntentFilter(ACTION_PTT_DOWN));
 
             registerReceiver(mDozeReceiver, new IntentFilter(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED));
+
+            registerReceiver(mScreenReceiver, new IntentFilter(Intent.ACTION_SCREEN_ON));
+            registerReceiver(mScreenReceiver, new IntentFilter(Intent.ACTION_SCREEN_OFF));
+            registerReceiver(mScreenReceiver, new IntentFilter(Intent.ACTION_USER_PRESENT));
         }
     }
 
@@ -591,6 +610,8 @@ public class AtomService extends Service
             unregisterReceiver(mBatteryReceiver);
             unregisterReceiver(mTetherReceiver);
             unregisterReceiver(mPttIntentReceiver);
+            unregisterReceiver(mDozeReceiver);
+            unregisterReceiver(mScreenReceiver);
 
             AtomAccessibility.setListener(null);
         }
@@ -615,19 +636,18 @@ public class AtomService extends Service
                 synchronized (mServiceLock)
                 {
 
-                    if ((enablePTTIntentInSleep()) && (isBackGroundUI()))
+                    if ((isPttIntentRunning()) && (isBackGroundUI()))
                     {
-                        appForeground(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        appForeground(Intent.FLAG_ACTIVITY_NEW_TASK, true);
                     }
                 }
             }
         }
     };
 
-    private boolean enablePTTIntentInSleep()
+    private boolean isPttIntentRunning()
     {
-
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O_MR1)
+        if (!mPttWakeup)
         {
             PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
 
@@ -706,6 +726,7 @@ public class AtomService extends Service
                         float batteryLevelFloat = rawLevel / (float) scale;
                         info.mBatteryLevel = (int) (batteryLevelFloat * 100); // 0-100 の batteryLevel 値を設定
                     }
+
                     mStatus.update();
                 }
                 //Log.w(TAG, "mBatteryReceiver END");
@@ -718,6 +739,10 @@ public class AtomService extends Service
         }
     };
 
+    //------------------------------------------------------------------------------
+    // DOZE監視レシーバー
+    //------------------------------------------------------------------------------
+
     private  int mDozeCnt = 0;
     private final BroadcastReceiver mDozeReceiver = new BroadcastReceiver()
     {
@@ -728,6 +753,50 @@ public class AtomService extends Service
             boolean isDoze = powerManager.isDeviceIdleMode();
             mDozeCnt++;
             Log.e(TAG, "isDoze: " + isDoze + " "+mDozeCnt);
+        }
+    };
+
+    //------------------------------------------------------------------------------
+    // SCREEN 監視レシーバー
+    //------------------------------------------------------------------------------
+
+    private final BroadcastReceiver  mScreenReceiver = new BroadcastReceiver()
+    {
+        @Override
+        public void onReceive(Context context, Intent intent)
+        {
+            String action = intent.getAction();
+
+            synchronized (mServiceLock)
+            {
+                switch (action)
+                {
+                    case Intent.ACTION_SCREEN_ON:
+
+                        if (!mPttWakeup)
+                        {
+                            if (!mStatus.mUiForeground)
+                                appForeground(Intent.FLAG_ACTIVITY_NEW_TASK, false);
+                        }
+
+                        Log.w(TAG, "SCREEN ON");
+
+                        if (mListener != null) mListener.OnScreenOn();
+
+                        break;
+
+                    case Intent.ACTION_SCREEN_OFF:
+
+                        Log.w(TAG, "SCREEN OFF");
+                        if (mListener != null) mListener.OnScreenOff();
+                        break;
+
+                    case Intent.ACTION_USER_PRESENT:
+
+                        Log.w(TAG, "LOCK OFF");
+                        break;
+                }
+            }
         }
     };
 
@@ -877,13 +946,16 @@ public class AtomService extends Service
      *********************************************************************************************/
 
     @SuppressWarnings("SameParameterValue")
-    private void appForeground(int flag)
+    private void appForeground(int flag, boolean vib_on)
     {
-        Log.w(TAG, "appForeground ");
+        //Log.w(TAG, "appForeground ");
 
         try
         {
-            mVibrator.vibrate(VibrationEffect.createOneShot(150,10));
+            if (vib_on)
+            {
+                mVibrator.vibrate(VibrationEffect.createOneShot(150, 10));
+            }
 
             mIntent =  mStatus.getNewIntent(flag);
             PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, mIntent, PendingIntent.FLAG_CANCEL_CURRENT);
@@ -906,6 +978,7 @@ public class AtomService extends Service
      *
      *********************************************************************************************/
 
+    @SuppressWarnings("SpellCheckingInspection")
     private String _deviceName(String name)
     {
         try
@@ -1342,6 +1415,7 @@ public class AtomService extends Service
         {
             Log.w(TAG,"start Accessibility service ");
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         }
     }
@@ -1407,6 +1481,7 @@ public class AtomService extends Service
         AtomStatus.AtomInfo info = mStatus.getInfo();
         info.mTimerRatio    = 0.0f;
         info.mTimerSec      = mTetherDuration/1000;
+
         Log.w(TAG, "stop Tethering Time "+info.mTimerRatio + " " + info.mTimerSec);
         mStatus.update();
 
@@ -1456,6 +1531,7 @@ public class AtomService extends Service
                     info.mTimerRatio = (float) delta / (float) mTetherDuration;
                     delta = mTetherDuration - delta;
                     info.mTimerSec = (delta + 500) / 1000;
+
                     mStatus.update();
 
                     int loop = 30;
@@ -1499,6 +1575,7 @@ public class AtomService extends Service
                 AtomStatus.AtomInfo info = mStatus.getInfo();
                 info.mTimerRatio = 0.0f;
                 info.mTimerSec = mTetherDuration/1000;
+
                 mStatus.update();
 
                 // テザリング停止

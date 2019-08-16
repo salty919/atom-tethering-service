@@ -33,8 +33,9 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
     private RadioGroup      mAutoStart              = null;
     private RadioGroup      mForegroundService      = null;
 
-    private TextView        mPtt                    = null;
+    private TextView        mCam                    = null;
     private TextView        mTether                 = null;
+    private TextView        mVersion                = null;
 
     @SuppressWarnings("FieldCanBeLocal")
     private Button          mWallPaper              = null;
@@ -79,10 +80,14 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
 
         mAutoStart          = mView.findViewById(R.id.boot);
         mForegroundService  = mView.findViewById(R.id.activate);
-        mPtt                = mView.findViewById(R.id.accessibility);
+        mCam                = mView.findViewById(R.id.camera);
         mTether             = mView.findViewById(R.id.tethering);
         mWallPaper          = mView.findViewById(R.id.wallpaper);
         mClear              = mView.findViewById(R.id.clear);
+        mVersion            = mView.findViewById(R.id.pversion);
+
+        mCam.setOnClickListener(mClickListener);
+        mCam.setClickable(true);
 
         mAutoStart.setOnCheckedChangeListener(this);
         mForegroundService.setOnCheckedChangeListener(this);
@@ -180,6 +185,9 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
         Log.w(TAG ,"[foreground] UI " + fore);
         Log.w(TAG, "[auto start] UI " + auto);
 
+        String ver = " preference-v."+ mPreference.PREF_VER;
+        mVersion.setText(ver);
+
         if (mForegroundService != null)
         {
             if (fore)
@@ -262,20 +270,15 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
         if (!mRunning) return;
 
         //
-        // PTT 接続状態
+        // Camera
         //
-
-        if (info.mPtt)
+        if ((mPreference!=null) && (mPreference.getPref_CameraExec()))
         {
-            mPttReady  = true;
-            mPtt.setTextColor(Color.YELLOW);
-            mPtt.setClickable(false);
+            mCam.setTextColor(Color.YELLOW);
         }
         else
         {
-            mPttReady  = false;
-            mPtt.setTextColor(Color.GRAY);
-            mPtt.setClickable(true);
+            mCam.setTextColor(Color.GRAY);
         }
 
         //
@@ -302,8 +305,10 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
         @Override
         public void onClick(View v) {
 
-            if (v != null) {
-                switch (v.getId()) {
+            if (v != null)
+            {
+                switch (v.getId())
+                {
 
                     case R.id.wallpaper:
                     {
@@ -317,6 +322,22 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
                     }
                     break;
 
+                    case R.id.camera:
+                    {
+                        boolean camera = mPreference.getPref_CameraExec();
+
+                        mPreference.setPref_CameraExec(!camera);
+
+                        if (!camera)
+                        {
+                            Log.w(TAG, "change camera enable");
+                        }
+                        else
+                        {
+                            Log.w(TAG,"change camera disable");
+                        }
+                    }
+                    break;
                 }
             }
         }

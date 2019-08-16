@@ -18,7 +18,7 @@
         android:gravity="center_vertical|center_horizontal">
 
         <TextView
-            android:id="@+id/accessibility"
+            android:id="@+id/camera"
             android:layout_width="wrap_content"
             android:layout_height="32dp"
             android:layout_marginStart="10dp"
@@ -26,7 +26,7 @@
             android:layout_weight="1"
             android:background="@drawable/frame_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/accessbility"
+            android:text="@string/cam"
             android:textColor="@android:color/background_light"
             android:textSize="18sp" />
 
@@ -55,6 +55,17 @@
         android:text="@string/setting"
         android:textColor="@android:color/holo_orange_light"
         android:textSize="30sp" />
+    <TextView
+        android:id="@+id/pversion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/textView2"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:layout_marginTop="45dp"
+        android:textColor="@android:color/holo_orange_light"
+        android:text="0.0"
+        android:textSize="18sp"/>
 
     <TextView
         android:id="@+id/boot_title"
@@ -183,5 +194,4 @@
         android:layout_marginStart="20dp"
         android:layout_alignBottom="@+id/wallpaper"
         android:text="@string/clear" />
-
 </RelativeLayout>

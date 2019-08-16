@@ -1,8 +1,10 @@
 package com.salty919.atomTethringUI;
 
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -61,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     public static final String    KEY_boot              = "bootUp";
 
     public final int   RESULT_PICK_IMAGE                = 1;
+    private static final int    REQUEST_CAMERA          = 2;
 
     // lock
     private final Object                        mBindLock           = new Object();
@@ -95,6 +98,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     private static int                          mCnt                = 0;
 
+    private boolean                             mCameraExec         = false;
+
     /**********************************************************************************************
      *
      *  コンストラクタ
@@ -105,7 +110,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         mCnt++;
 
-        TAG =  MainActivity.class.getSimpleName()+ "["+mCnt+"]";
+        TAG =  "Atom"+MainActivity.class.getSimpleName()+ "["+mCnt+"]";
         Log.w(TAG, " new MainActivity");
     }
 
@@ -119,13 +124,20 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         View decor = this.getWindow().getDecorView();
 
-        decor.setSystemUiVisibility(
-                          View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        if (mPreference.getPref_StatusHidden())
+        {
+            decor.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+        else
+        {
+            decor.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE);
+        }
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
@@ -221,6 +233,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         mAdapterEnable = true;
 
+        mCameraExec = false;
+
         //-------------------------------------------------------
         // bind ATOM-SERVICE
         //-------------------------------------------------------
@@ -257,6 +271,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         Log.w(TAG,"onStart");
 
+        mCameraExec = false;
+
         super.onStart();
     }
 
@@ -266,17 +282,26 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
      *
      **********************************************************************************************/
 
+    private float mSystemBrightness;
+
     @Override
     public void onResume()
     {
         Log.w(TAG,"onResume");
-
 
         //---------------------------------------------------------
         // FULL SCREEN
         //---------------------------------------------------------
 
         fullScreen();
+
+        if (false)
+        {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            mSystemBrightness = lp.screenBrightness;
+            lp.screenBrightness = 1.0f;
+            getWindow().setAttributes(lp);
+        }
 
         // ステータスバーなどがあれば閉じる
         Intent intent = new Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
@@ -322,6 +347,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         mPager.setAdapter(null);
 
         mAdapterEnable = false;
+
+        if (false)
+        {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.screenBrightness = mSystemBrightness;
+            getWindow().setAttributes(lp);
+        }
 
         super.onPause();
     }
@@ -398,6 +430,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         //String mess = getResources().getString(R.string.ui_bg);
         //Toast.makeText(this, mess, Toast.LENGTH_LONG).show();
+        Log.w(TAG,"MOVE TO BackGround...");
 
         // UIをBGに落とす　→　Activity#pause
         moveTaskToBack(true);
@@ -414,6 +447,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public boolean dispatchKeyEvent(KeyEvent e)
     {
+
         if (e.getKeyCode() == KeyEvent.KEYCODE_BACK)
         {
             int act = e.getAction();
@@ -528,9 +562,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         mServiceIntent = new Intent(MainActivity.this, AtomService.class);
 
-        mServiceIntent.putExtra(AtomService.KEY_pkgName, this.getPackageName());
-        mServiceIntent.putExtra(AtomService.KEY_clsName, getClassName(MainActivity.class));
-        mServiceIntent.putExtra(AtomService.KEY_version, BuildConfig.VERSION_NAME);
+        mServiceIntent.putExtra(AtomService.KEY_pkgName,    this.getPackageName());
+        mServiceIntent.putExtra(AtomService.KEY_clsName,    getClassName(MainActivity.class));
+        mServiceIntent.putExtra(AtomService.KEY_version,    BuildConfig.VERSION_NAME);
+        mServiceIntent.putExtra(AtomService.KEY_pttwakeup,  mPreference.getPref_PttWakeup());
 
         bindService(mServiceIntent,this, Context.BIND_AUTO_CREATE);
 
@@ -564,7 +599,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onNotify(AtomStatus.AtomInfo info)
     {
-        Log.w(TAG, "observer#update -> update UI");
+        //Log.w(TAG, "observer#update -> update UI");
 
         mAdapter.notify(info);
     }
@@ -584,18 +619,34 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         if (!stopServiceDebug)
         {
+            if (mPreference.getPref_CameraExec())
+            {
+                Log.w(TAG, "<camera Exec>");
+                mCameraExec = true;
 
-            /*
-            // インテントのインスタンス生成
-            Intent intent = new Intent();
-            // インテントにアクションをセット
-            intent.setAction("android.media.action.VIDEO_CAMERA");
-            // カメラアプリ起動
-            startActivity(intent);
-            */
+                // インテントのインスタンス生成
+                Intent intent = new Intent();
+                // インテントにアクションをセット
+                intent.setAction("android.media.action.IMAGE_CAPTURE_SECURE");
 
-            // 終了
-            moveToBackground();
+                try
+                {
+                    // カメラアプリ起動
+                    //startActivityForResult(intent, REQUEST_CAMERA);
+                    PendingIntent pendingIntent = PendingIntent.getActivity(this, REQUEST_CAMERA, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                    //pendingIntent.send();
+                    IntentSender intentSender = pendingIntent.getIntentSender();
+                    startIntentSenderForResult(intentSender, REQUEST_CAMERA, null, 0, 0, 0);
+                }
+                catch (Exception e)
+                {
+                    Log.e(TAG, "camera Intent error");
+                }
+            }
+            else
+            {
+                moveToBackground();
+            }
         }
         else
         {
@@ -606,6 +657,23 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             mServiceStop = true;
             finish();
         }
+    }
+
+    @Override
+    public void OnScreenOff()
+    {
+        if (mCameraExec)
+        {
+            Log.w(TAG,"<Camera force finish> ");
+            mCameraExec = false;
+            moveToBackground();
+        }
+    }
+
+    @Override
+    public void OnScreenOn()
+    {
+
     }
 
     /********************************************************************************************
@@ -744,7 +812,27 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
             mAdapter.backGroundImage();
         }
+        else if (AtomPreference.KEY_pttwakeup.equals(key))
+        {
+            if (mPreference.getPref_PttWakeup())
+            {
+                Log.w(TAG,"Change wakeup Type PTT");
+            }
+            else
+            {
+                Log.w(TAG,"Change wakeup Type POWER");
+            }
+
+
+            reload();
+        }
+        else if (AtomPreference.KEY_cameraExec.equals(key))
+        {
+            mAdapter.notify(mStatus.getInfo());
+        }
     }
+
+
 
     /**********************************************************************************************
      *
@@ -761,9 +849,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent resultData)
     {
-        Log.w(TAG," onActivityResult " + requestCode + " " + requestCode + " "+ resultData);
+        if (requestCode == REQUEST_CAMERA)
+        {
+            Log.w(TAG,"<CAMERA finish>");
+            mCameraExec =false;
 
-        if (requestCode == RESULT_PICK_IMAGE && resultCode == RESULT_OK)
+        }
+        else if (requestCode == RESULT_PICK_IMAGE && resultCode == RESULT_OK)
         {
             //
             // 背景画像選択（ピッカー）からの戻り

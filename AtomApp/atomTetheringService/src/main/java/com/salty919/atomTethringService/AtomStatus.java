@@ -582,7 +582,7 @@ public class AtomStatus
      *
      *********************************************************************************************/
 
-    AtomInfo getInfo()
+    public AtomInfo getInfo()
     {
         return mInfo;
     }

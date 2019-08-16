@@ -13,6 +13,7 @@
     <string name="battry">100</string>
     <string name="battey_title">Battery</string>
     <string name="accessbility">PTT</string>
+    <string name="cam">CAM</string>
     <string name="tetherReq">TETHERING</string>
     <string name="wifiApDesc">WIFI-AP icon</string>
     <string name="ui_bg" >Atom Service: move to background</string>
