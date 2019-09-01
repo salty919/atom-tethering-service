@@ -1,6 +1,5 @@
 package com.salty919.atomTethringService;
 
-
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -32,6 +31,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.KeyEvent;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -40,6 +40,9 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Objects;
+
+import static android.view.KeyEvent.ACTION_DOWN;
+import static android.view.KeyEvent.KEYCODE_VOLUME_UP;
 
 /**************************************************************************************************
  *
@@ -171,9 +174,12 @@ public class AtomService extends Service
 
         String OnNotifyString(notifyMessage mid);
 
+        void    OnPttPress();
         /**  PTTのロングプレス通知（ユーザ側で自由に使ってよい）  */
 
         void   OnPttLongPress();
+
+        Boolean OnVolUp(boolean exec);
 
         void   OnScreenOn();
 
@@ -245,37 +251,12 @@ public class AtomService extends Service
     private boolean             mTetherTimerFlag    = false;
 
     private long                mTetherDuration     = 0;
-    private static  long[]      mTimerArray         = {0,5*60*1000L,10*60*1000L };
-    private int                 mTimerIndex         = 0;
 
     private boolean             mRegisterReceiver   = false;
 
     private Vibrator            mVibrator           = null;
 
-    private NotificationChannel mChannel = null;
-
-    /*********************************************************************************************
-     *
-     *  テザリング自動切断タイマー配列の設定｛オプション｝
-     *
-     *  起動初期値は配列の第一要素から開始し、末尾まで行ったら先頭に戻る。
-     *  自動切断時間はボリュームUPキーで切り替える
-     *
-     * @param timeArray     タイマー配列、NULLの場合は自動切断なし
-     *
-     *********************************************************************************************/
-
-    public void setTimeArray( long[] timeArray)
-    {
-        if ((timeArray == null) || ((timeArray.length ==1)&&(timeArray[0]==0)))
-        {
-            mTimerArray = null;
-        }
-        else
-        {
-            mTimerArray = timeArray;
-        }
-    }
+    private NotificationChannel mChannel            = null;
 
     //--------------------------------------------------------------------------------------
     // フォアグランドサービス登録済みかどうか
@@ -555,9 +536,6 @@ public class AtomService extends Service
 
             Log.w(TAG,"connect Accessibility ");
 
-            AtomAccessibility.mLongPressMsec    = mPressLongPress;
-            AtomAccessibility.mPttCode          = mPressKeyCode;
-
             AtomAccessibility.setListener(mPressListener);
 
             //------------------------------------------------------
@@ -632,10 +610,8 @@ public class AtomService extends Service
 
             if (action.equals(ACTION_PTT_DOWN))
             {
-
                 synchronized (mServiceLock)
                 {
-
                     if ((isPttIntentRunning()) && (isBackGroundUI()))
                     {
                         appForeground(Intent.FLAG_ACTIVITY_NEW_TASK, true);
@@ -773,12 +749,6 @@ public class AtomService extends Service
                 {
                     case Intent.ACTION_SCREEN_ON:
 
-                        if (!mPttWakeup)
-                        {
-                            if (!mStatus.mUiForeground)
-                                appForeground(Intent.FLAG_ACTIVITY_NEW_TASK, false);
-                        }
-
                         Log.w(TAG, "SCREEN ON");
 
                         if (mListener != null) mListener.OnScreenOn();
@@ -789,6 +759,17 @@ public class AtomService extends Service
 
                         Log.w(TAG, "SCREEN OFF");
                         if (mListener != null) mListener.OnScreenOff();
+
+                        // PTTでのスクリーンONが無効の場合は、画面オフ時にTOPアクティティにする
+
+                        if (!mPttWakeup)
+                        {
+                            if (!mStatus.mUiForeground)
+                            {
+                                appForeground(Intent.FLAG_ACTIVITY_NEW_TASK, false);
+                            }
+                        }
+
                         break;
 
                     case Intent.ACTION_USER_PRESENT:
@@ -804,8 +785,16 @@ public class AtomService extends Service
     // ユーザ補助コールバック
     //----------------------------------------------------------------------
 
-    private final AtomPttInterface mPressListener = new AtomPttInterface()
+    private final AtomAccessibility.KeyInterface mPressListener = new AtomAccessibility.KeyInterface()
     {
+        /******************************************************************************************
+         *
+         *  ユーザー補助の準備完了
+         *
+         * @param enable
+         *
+         *****************************************************************************************/
+
         @Override
         public void onReady(boolean enable)
         {
@@ -822,71 +811,19 @@ public class AtomService extends Service
             }
         }
 
-        @Override
-        public boolean onPttPress()
-        {
-            //Log.w(TAG,"onPttPress");
-
-            synchronized (mServiceLock)
-            {
-                // UIがFGの場合はTRUEを戻す
-                //
-                // FALSEを戻した場合はonPttClickやonPttLongPressは発動しない
-                // (BGだとテザリング切り替えは動かさない）
-
-                return !isBackGroundUI();
-
-                // INTENTを使う前は
-                // ここでBG->FGを処理していたが
-                // UI起動機能をINTENT側にすべて任せる
-            }
-        }
+        /*****************************************************************************************
+         *
+         * 　ユーザー補助でのKEY検知
+         *
+         * @param e     KEYイベント
+         * @return      TRUE：下流に渡さない　FALSE：　下流に渡す
+         *
+         ****************************************************************************************/
 
         @Override
-        public void onPttLongPress()
+        public boolean onKeyPress(KeyEvent e)
         {
-            if ((mStatus.mUiUsed) && (mStatus.mUiForeground))
-            {
-                //Log.w(TAG, "onPttLongPress");
-                if (mListener != null) mListener.OnPttLongPress();
-            }
-        }
-
-        @Override
-        public void onPttClick()
-        {
-            if ((mStatus.mUiUsed) && (mStatus.mUiForeground))
-            {
-                //Log.w(TAG, "onPttClick");
-                // テザリング切り替え
-                tetheringToggle();
-            }
-        }
-
-        @Override
-        public  boolean onVolPress()
-        {
-            if ((mStatus.mUiUsed) && (mStatus.mUiForeground) && (mTimerArray != null))
-            {
-                //Log.w(TAG, "onVolPress");
-
-                mTimerIndex++;
-                if (mTimerIndex >= mTimerArray.length) mTimerIndex = 0;
-
-                mTetherDuration = mTimerArray[mTimerIndex];
-
-                Log.w(TAG, " TIMER INDEX:" + mTimerIndex + " Duration " + mTetherDuration);
-
-                synchronized (mServiceLock)
-                {
-                    _stopTetherTimer();
-                    _changeTetherTime();
-                }
-
-                return true;
-            }
-
-            return false;
+            return KeyCheck(e);
         }
     };
 
@@ -896,7 +833,7 @@ public class AtomService extends Service
      *
      ********************************************************************************************/
 
-    private void tetheringToggle()
+    public void tetheringToggle()
     {
         try
         {
@@ -1398,8 +1335,8 @@ public class AtomService extends Service
             // 動作中カウンタを破棄
             mHandle.removeCallbacks(mConnectionProcess);
 
-            // 初回は遅延は半分
-            mHandle.postDelayed(mConnectionProcess, mHandleCycleMsec/2);
+            // 監視開始
+            mHandle.postDelayed(mConnectionProcess, mHandleCycleMsec);
         }
     }
 
@@ -1476,7 +1413,6 @@ public class AtomService extends Service
 
     private void _stopTetherTimer()
     {
-
         // 停止通知
         AtomStatus.AtomInfo info = mStatus.getInfo();
         info.mTimerRatio    = 0.0f;
@@ -1586,4 +1522,222 @@ public class AtomService extends Service
             }
         }
     };
+
+
+    /*********************************************************************************************
+     *
+     *  H/Wキーの処理（利用したキーは下流に渡さず、ここで握りつぶす）
+     *
+     * @param e     KeyEvent
+     * @return      TRUE　下流に渡さない、　FALES　下流に渡す
+     *
+     ********************************************************************************************/
+
+    public boolean KeyCheck(KeyEvent e)
+    {
+        int code = e.getKeyCode();
+        int acttion = e.getAction();
+
+        if (code == mPressKeyCode)
+        {
+            Log.w(TAG,"PRESS PTT " + (e.getAction() == ACTION_DOWN ? "down": "up"));
+
+            if (e.getAction() == ACTION_DOWN)
+            {
+                pressPtt(true);
+            }
+            else
+            {
+                pressPtt(false);
+            }
+            return true;
+
+        }
+        else if (e.getKeyCode() == KEYCODE_VOLUME_UP)
+        {
+            if (e.getAction() == ACTION_DOWN)
+            {
+                Log.w(TAG, "VOLUP DWON");
+                return pressVolUp(true);
+            }
+            else
+            {
+                Log.w(TAG, "VOLUP UP");
+                return pressVolUp(false);
+            }
+        }
+
+        return false;
+    }
+    private final Handler           mPttHandler         = new Handler();
+
+    private long                    mPttDownTIme        = 0;
+    private boolean                 mPttPress           = false;
+    private boolean                 mVolDownPress       = false;
+    private boolean                 mVolDownOp          = false;
+    private boolean                 mLongPressStart     = false;
+
+    /**********************************************************************************************
+     *
+     * PTTロングPRESS計測タイマー
+     *
+     *********************************************************************************************/
+
+    private final Runnable  mPttLongPressTimer = new Runnable()
+    {
+        @Override
+        public void run()
+        {
+            synchronized (mServiceLock)
+            {
+                if (mLongPressStart)
+                {
+                    mLongPressStart = false;
+
+                    //
+                    // PTT-DOWN hold time  > mLongPressMsec
+                    //
+
+                    if ((mStatus.mUiUsed) && (mStatus.mUiForeground))
+                    {
+                        //Log.w(TAG, "onPttLongPress");
+                        if (mListener != null) mListener.OnPttLongPress();
+                    }
+                }
+            }
+        }
+    };
+
+    /**********************************************************************************************
+     *
+     * PTTボタンのDOWN/UP
+     *
+     *********************************************************************************************/
+
+    private void pressPtt(boolean down)
+    {
+        if (mListener == null) return;
+
+        long current = SystemClock.elapsedRealtime();
+
+        if (down)
+        {
+            //
+            // PTT-DOWN
+            //
+
+            if (!mPttPress)
+            {
+                if (current - mPttDownTIme > mPressLongPress)
+                {
+                    Log.w(TAG, "PRESS PTT DOWN EXECUTE");
+                    //
+                    // PTT UP->DOWN & Previous Down > mLongPressMsec
+                    //
+
+                    mPttDownTIme = current;
+
+                    synchronized (mServiceLock)
+                    {
+                        // UIがBGの場合は無視する
+
+                        if (isBackGroundUI()) return;
+                    }
+
+                    mLongPressStart = true;
+
+                    mPttHandler.postDelayed(mPttLongPressTimer, mPressLongPress);
+                }
+
+                mPttPress = true;
+            }
+        }
+        else
+        {
+            //
+            // PTT-UP
+            //
+
+            if (mPttPress)
+            {
+                if (current - mPttDownTIme < mPressLongPress)
+                {
+                    Log.w(TAG, "PRESS PTT UP EXECUTE");
+
+                    if (mLongPressStart)
+                    {
+                        mLongPressStart = false;
+                        mPttHandler.removeCallbacks(mPttLongPressTimer);
+                    }
+
+                    //
+                    // PTT DOWN->UP & Duration < mLongPressMsec
+                    //
+                    if ((mStatus.mUiUsed) && (mStatus.mUiForeground))
+                    {
+                        if (mListener != null) mListener.OnPttPress();
+                    }
+                }
+            }
+
+            mPttPress = false;
+        }
+    }
+
+    /**********************************************************************************************
+     *
+     * VOL-UPキーのダウン（押し）
+     *
+     *********************************************************************************************/
+
+    private boolean  pressVolUp(boolean down)
+    {
+        boolean prevPress = mVolDownPress;
+
+        if (down)
+        {
+            mVolDownPress   = true;
+
+            if ((!prevPress)&& (mListener != null) && (mStatus.mUiUsed) && (mStatus.mUiForeground))
+            {
+                Log.w(TAG, "onVolPress Down");
+
+                mVolDownOp = mListener.OnVolUp(true);
+            }
+
+            return mVolDownOp;
+        }
+        else
+        {
+            if ((prevPress)&& (mListener != null) && (mStatus.mUiUsed) && (mStatus.mUiForeground))
+            {
+                Log.w(TAG, "onVolPress Uo");
+
+                mVolDownOp = mListener.OnVolUp(false);
+            }
+            mVolDownPress   = false;
+            mVolDownOp      = false;
+        }
+
+        return false;
+    }
+
+    /*********************************************************************************************
+     *
+     *  テザリング自動オフタイマー
+     *
+     * @param timerDuration         自動オフ時間（ミリ秒）
+     *
+     *********************************************************************************************/
+
+    public void autoOffTimer(long timerDuration)
+    {
+        synchronized (mServiceLock)
+        {
+            mTetherDuration = timerDuration;
+
+            _stopTetherTimer();
+            _changeTetherTime();
+        }
+    }
 }

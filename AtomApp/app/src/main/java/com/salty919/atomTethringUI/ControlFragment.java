@@ -44,7 +44,11 @@ public class ControlFragment extends FragmentBase
 
     private static int  mCnt                    = 0;
 
-    //private ProgressBar mTetherBar              = null;
+    /**********************************************************************************************
+     *
+     *  コンストラクタ
+     *
+     *********************************************************************************************/
 
     public ControlFragment()
     {
@@ -54,6 +58,18 @@ public class ControlFragment extends FragmentBase
 
         Log.w(TAG,"new ControlFragment ");
     }
+
+    /**********************************************************************************************
+     *
+     * フラグメントのVIEW生成
+     *
+     * @param inflater              未使用
+     * @param container             未使用
+     * @param savedInstanceState    未使用
+     *
+     * @return      VIEW
+     *
+     *********************************************************************************************/
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
@@ -76,10 +92,9 @@ public class ControlFragment extends FragmentBase
         mWap            = mView.findViewById(R.id.bap);
         mVpn            = mView.findViewById(R.id.bvpn);
 
-        mPtt.setOnClickListener(mClickListener);
-        mPtt.setClickable(true);
-
+        mPtt.setClickable(false);
         mWifiAPBtn.setClickable(false);
+
         Log.w(TAG,"onCreateView ");
 
         mRunning = true;
@@ -88,24 +103,10 @@ public class ControlFragment extends FragmentBase
 
         // 画面タッチを有効にする
         enableTouch(mView);
+        mEnable = true;
 
         return mView;
     }
-
-    /**********************************************************************************************
-     *
-     *  PTTボタンクリック（Accessibilityの設定）
-     *
-     *********************************************************************************************/
-
-    private final View.OnClickListener mClickListener = new View.OnClickListener()
-    {
-        @Override
-        public void onClick(View v)
-        {
-            if ( mService != null) mService.startAccessibility();
-        }
-    };
 
     /**********************************************************************************************
      *
@@ -117,6 +118,29 @@ public class ControlFragment extends FragmentBase
     {
         // 背景画像変更
         background_image();
+
+        preferenceUpdate();
+    }
+
+    /**********************************************************************************************
+     *
+     *  設定内容の表示反映
+     *
+     ********************************************************************************************/
+
+    private void preferenceUpdate()
+    {
+        if (mPreference !=null)
+        {
+            if (mPreference.getPref_PttWakeup()) {
+                mPtt.setText(R.string.ptt);
+                mPtt.setTextColor(Color.YELLOW);
+
+            } else {
+                mPtt.setText(R.string.pow);
+                mPtt.setTextColor(Color.YELLOW);
+            }
+        }
     }
 
     /**********************************************************************************************
@@ -128,11 +152,12 @@ public class ControlFragment extends FragmentBase
     synchronized  void UI_update(AtomStatus.AtomInfo info)
     {
         Log.w(TAG," UI_update "+ mRunning );
+
         //
         // テザリング経過時間プログレスバーの更新
         //
 
-        //mTetherBar.setProgress((int) (info.mTimerRatio*100), true);
+        preferenceUpdate();
 
         //
         // テザリング残り秒数の更新
@@ -150,25 +175,6 @@ public class ControlFragment extends FragmentBase
         else
         {
             mTimeSec.setText("");
-        }
-
-        //
-        // PTT 接続状態
-        //
-
-        if (info.mPtt)
-        {
-            mPttReady  = true;
-
-            mPtt.setTextColor(Color.YELLOW);
-            mPtt.setClickable(false);
-        }
-        else
-        {
-            mPttReady  = false;
-
-            mPtt.setTextColor(Color.GRAY);
-            mPtt.setClickable(true);
         }
 
         //

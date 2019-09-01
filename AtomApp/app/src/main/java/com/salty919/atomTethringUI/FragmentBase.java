@@ -1,5 +1,6 @@
 package com.salty919.atomTethringUI;
 
+import android.app.KeyguardManager;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,6 +15,8 @@ import android.view.View;
 
 import com.salty919.atomTethringService.AtomService;
 import com.salty919.atomTethringService.AtomStatus;
+
+import java.util.Objects;
 
 /*************************************************************************************************
  *
@@ -39,19 +42,18 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     public interface Listener
     {
         void onReady(FragmentBase fragment);
-        void onLayoutFix(int width, int height);
         void onPickupImage();
         void onSingleTapUp();
         void onDoubleTap();
+        void onCancel();
     }
 
+    public      boolean         mEnable             = false;
     protected   Context         mContext            = null;
     protected   Listener        mListener;
     protected   AtomService     mService            = null;
     protected   AtomPreference  mPreference         = null;
     private     GestureDetector mGestureDetector    = null;
-
-    protected boolean           mPttReady           = false;
 
     protected boolean           mRunning            = false;
     protected   View            mView               = null;
@@ -69,16 +71,20 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     {
         super.onAttach(context);
 
-        Log.w(TAG,"onAttach");
+        Log.w(TAG,"onAttach "+ this.hashCode()+ " "+ context.hashCode());
 
+        mListener = (Listener) getActivity();
         mContext = context;
     }
 
     @Override
     public void onDetach()
     {
-        Log.w(TAG,"onDetach");
+        Log.w(TAG,"onDetach "+ this.hashCode());
         super.onDetach();
+        mListener = null;
+        mContext = null;
+        mEnable = false;
     }
 
     /*********************************************************************************************
@@ -93,7 +99,7 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
-        Log.w(TAG,"onCreate");
+        Log.w(TAG,"onCreate "+ this.hashCode());
 
         super.onCreate(savedInstanceState);
     }
@@ -102,12 +108,17 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     {
         super.onDestroy();
 
-        Log.w(TAG,"onDestroy");
+        Log.w(TAG,"onDestroy "+ this.hashCode());
 
-        mService = null;
-        mPreference = null;
-        mListener = null;
+        mService        = null;
+        mPreference     = null;
+    }
 
+    @Override
+    public void onPause()
+    {
+        Log.w(TAG,"onPause "+ this.hashCode());
+        super.onPause();
     }
 
     /**********************************************************************************************
@@ -120,7 +131,7 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
 
     void setService(AtomService service)
     {
-        Log.w(TAG,"setService");
+        Log.w(TAG,"setService "+ this.hashCode());
         mService = service;
     }
 
@@ -134,7 +145,7 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
 
     void setPreference(AtomPreference preference)
     {
-        Log.w(TAG,"setPreference ");
+        Log.w(TAG,"setPreference "+ this.hashCode());
 
         mPreference = preference;
 
@@ -146,19 +157,6 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     // 派生クラスを呼び出す（抽象メソッド）
     abstract void onPreferenceAvailable();
 
-    /**********************************************************************************************
-     *
-     * リスナー登録
-     *
-     * @param listener      通知先オブジェクト
-     *
-     *********************************************************************************************/
-
-    void setListener(Listener listener)
-    {
-        Log.w(TAG,"setListener");
-        mListener = listener;
-    }
 
     /*********************************************************************************************
      *
@@ -186,7 +184,10 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
         @Override
         public boolean onTouch(View v, MotionEvent event)
         {
-            if (mPttReady) mGestureDetector.onTouchEvent(event);
+            if (event.getAction() == MotionEvent.ACTION_UP)
+                v.performClick();
+
+            mGestureDetector.onTouchEvent(event);
             return true;
         }
     };
@@ -223,6 +224,13 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
             }
         }
     }
+    protected boolean isLockScreen()
+    {
+        KeyguardManager keyguardmanager = (KeyguardManager) mContext.getSystemService(Context.KEYGUARD_SERVICE);
+
+        return Objects.requireNonNull(keyguardmanager).isKeyguardLocked();
+
+    }
 
     abstract  void UI_update(AtomStatus.AtomInfo info);
 
@@ -235,7 +243,7 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     @Override
     public boolean onDoubleTap(MotionEvent e)
     {
-        Log.w(TAG,"onDoubleTap"+ (mListener!= null));
+        Log.w(TAG,"onDoubleTap "+ (mListener!= null) +" "+ this.hashCode());
 
         if (mListener != null) mListener.onDoubleTap();
         return false;
@@ -244,7 +252,7 @@ public abstract class FragmentBase extends Fragment implements GestureDetector.O
     @Override
     public boolean onSingleTapUp(MotionEvent e)
     {
-        Log.w(TAG,"onSingleTapUp " + (mListener!= null));
+        Log.w(TAG,"onSingleTapUp " + (mListener!= null) +" "+ this.hashCode());
 
         if (mListener != null) mListener.onSingleTapUp();
         return false;

@@ -1,9 +1,10 @@
 package com.salty919.atomTethringUI;
 
-import android.app.KeyguardManager;
-import android.content.Context;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -16,7 +17,6 @@ import android.widget.TextView;
 
 import com.salty919.atomTethringService.AtomStatus;
 
-import java.util.Objects;
 
 /*************************************************************************************************
  *
@@ -31,21 +31,24 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
 {
     // ラジオグループ
     private RadioGroup      mAutoStart              = null;
+    private Button          mAutoStartBlock         = null;
     private RadioGroup      mForegroundService      = null;
+    private Button          mForegroundServiceBlock = null;
 
     private TextView        mCam                    = null;
     private TextView        mTether                 = null;
     private TextView        mVersion                = null;
+    private Button          mBanner                 = null;
 
-    @SuppressWarnings("FieldCanBeLocal")
-    private Button          mWallPaper              = null;
-    @SuppressWarnings("FieldCanBeLocal")
-    private Button          mClear                   = null;
     // 選択値
     private int             mAutoStartId            = -1;
     private int             mForegroundServiceId    = -1;
 
     private static int      mCnt                    = 0;
+
+    private final Handler   mHandle                 = new Handler();
+
+    private AlertDialog     mDialog                 = null;
 
     /**********************************************************************************************
      *
@@ -76,18 +79,34 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
     {
+        Log.w(TAG,"onCreateView " + this.hashCode());
+
         mView   = View.inflate(mContext, R.layout.setting, null);
 
-        mAutoStart          = mView.findViewById(R.id.boot);
-        mForegroundService  = mView.findViewById(R.id.activate);
-        mCam                = mView.findViewById(R.id.camera);
-        mTether             = mView.findViewById(R.id.tethering);
-        mWallPaper          = mView.findViewById(R.id.wallpaper);
-        mClear              = mView.findViewById(R.id.clear);
-        mVersion            = mView.findViewById(R.id.pversion);
+        mAutoStart              = mView.findViewById(R.id.boot);
+        mForegroundService      = mView.findViewById(R.id.activate);
+        mAutoStartBlock         = mView.findViewById(R.id.bootblock);
+        mForegroundServiceBlock = mView.findViewById(R.id.activateblock);
+        mCam                    = mView.findViewById(R.id.camera);
+        mTether                 = mView.findViewById(R.id.tethering);
+        mVersion                = mView.findViewById(R.id.pversion);
+        mBanner                 = mView.findViewById(R.id.lock);
+
+        mBanner.setOnClickListener(mClickListener);
+        mBanner.setBackgroundColor(Color.BLACK);
+        mBanner.setTextColor(Color.WHITE);
+        mBanner.setClickable(true);
 
         mCam.setOnClickListener(mClickListener);
         mCam.setClickable(true);
+
+        mAutoStartBlock.setVisibility(View.INVISIBLE);
+        mAutoStartBlock.setOnClickListener(mClickListener);
+        mAutoStartBlock.setClickable(true);
+
+        mForegroundServiceBlock.setVisibility(View.INVISIBLE);
+        mForegroundServiceBlock.setOnClickListener(mClickListener);
+        mForegroundServiceBlock.setClickable(true);
 
         mAutoStart.setOnCheckedChangeListener(this);
         mForegroundService.setOnCheckedChangeListener(this);
@@ -95,60 +114,27 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
         mAutoStartId = mAutoStart.getCheckedRadioButtonId();
         mForegroundServiceId = mForegroundService.getCheckedRadioButtonId();
 
-        KeyguardManager keyguardmanager = (KeyguardManager) mContext.getSystemService(Context.KEYGUARD_SERVICE);
-
-        if (!Objects.requireNonNull(keyguardmanager).isKeyguardLocked())
-        {
-            mWallPaper.setOnClickListener(mClickListener);
-            mWallPaper.setClickable(true);
-
-            mClear.setOnClickListener(mClickListener);
-            mClear.setClickable(true);
-        }
-        else
-        {
-            mWallPaper.setClickable(false);
-            mClear.setClickable(false);
-
-            mWallPaper.setTextColor(Color.GRAY);
-            mClear.setTextColor(Color.GRAY);
-            //mWallPaper.setVisibility( View.INVISIBLE);
-            //mClear.setVisibility(View.INVISIBLE);
-        }
-
-        mView.getViewTreeObserver().addOnGlobalLayoutListener(mGlobalLayoutListener);
-
-        Log.w(TAG,"onCreateView");
-
         mRunning = true;
 
         if (mListener != null)  mListener.onReady(this);
+
+        mEnable = true;
 
         return mView;
     }
 
     /**********************************************************************************************
      *
-     *  レイアウト後の画面サイズを取得
+     * フラグメントのポーズ
      *
-     *********************************************************************************************/
+     **********************************************************************************************/
 
-    private final ViewTreeObserver.OnGlobalLayoutListener mGlobalLayoutListener = new ViewTreeObserver.OnGlobalLayoutListener()
+    @Override
+    public void onPause()
     {
-        @Override
-        public void onGlobalLayout()
-        {
-            // VIEWの画面サイズを記録する
-            int width  = mView.getWidth();
-            int height = mView.getHeight();
-
-            Log.w(TAG," VIEW "+ width + " " + height);
-
-            mView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-
-            if (mListener != null) mListener.onLayoutFix(width, height);
-        }
-    };
+        super.onPause();
+        if (mDialog != null) mDialog.dismiss();
+    }
 
     /**********************************************************************************************
      *
@@ -159,10 +145,10 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
     @Override
     void onPreferenceAvailable()
     {
-        Log.w(TAG, "UI update by Preference");
+        Log.w(TAG, "UI update by Preference "+ this.hashCode());
 
         // プリファレンスの値を表示
-        updateUI();
+        updatePreferenceValue();
 
         //
         background_image();
@@ -174,7 +160,7 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
      *
      *********************************************************************************************/
 
-    private void updateUI()
+    private void updatePreferenceValue()
     {
         if (!mRunning) return;
 
@@ -269,9 +255,30 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
 
         if (!mRunning) return;
 
+        if (isLockScreen())
+        {
+            mBanner.setTextColor(Color.WHITE);
+            mBanner.setVisibility(View.VISIBLE);
+            mBanner.setText(R.string.lock);
+
+            mForegroundServiceBlock.setVisibility(View.VISIBLE);
+            mAutoStartBlock.setVisibility(View.VISIBLE);
+        }
+        else
+        {
+            mBanner.setTextColor(Color.WHITE);
+            mBanner.setVisibility(View.VISIBLE);
+            mBanner.setText(R.string.unLock);
+
+            mForegroundServiceBlock.setVisibility(View.INVISIBLE);
+            mAutoStartBlock.setVisibility(View.INVISIBLE);
+
+        }
+
         //
         // Camera
         //
+
         if ((mPreference!=null) && (mPreference.getPref_CameraExec()))
         {
             mCam.setTextColor(Color.YELLOW);
@@ -295,13 +302,85 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
         }
     }
 
+    /*********************************************************************************************
+     *
+     *  バーナーハンドラー
+     *
+     ********************************************************************************************/
+
+    private final Runnable  mBannerHandler = new Runnable()
+    {
+        @Override
+        public void run()
+        {
+            mBanner.setText(R.string.lock);
+            mBanner.setTextColor(Color.WHITE);
+        }
+    };
+
+    /*********************************************************************************************
+     *
+     *  操作キャンセル
+     *
+     ********************************************************************************************/
+
+    private void operationBlock()
+    {
+        mBanner.setText(R.string.opblock);
+        mBanner.setTextColor(Color.YELLOW);
+        mHandle.removeCallbacks(mBannerHandler);
+        mHandle.postDelayed(mBannerHandler, 1000);
+    }
+
+    /*********************************************************************************************
+     *
+     *  壁紙クリア
+     *
+     ********************************************************************************************/
+
+    private void Func_clearWallPaper()
+    {
+        mPreference.setPref_background("");
+    }
+
+    /*********************************************************************************************
+     *
+     *  壁紙選択
+     *
+     ********************************************************************************************/
+
+    private void Func_selectWallPaper()
+    {
+        if (mListener != null) mListener.onPickupImage();
+    }
+
+    /*********************************************************************************************
+     *
+     *  カメラ呼び出し機能、有効／無効トグル
+     *
+     ********************************************************************************************/
+
+    private void Func_cameraToggle()
+    {
+        boolean camera = mPreference.getPref_CameraExec();
+
+        mPreference.setPref_CameraExec(!camera);
+
+        if (!camera) {
+            Log.w(TAG, "change camera enable");
+        } else {
+            Log.w(TAG, "change camera disable");
+        }
+    }
+
     /**********************************************************************************************
      *
      *  背景選択／解除
      *
      *********************************************************************************************/
 
-    private final View.OnClickListener mClickListener  = new View.OnClickListener() {
+    private final View.OnClickListener mClickListener  = new View.OnClickListener()
+    {
         @Override
         public void onClick(View v) {
 
@@ -309,32 +388,35 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
             {
                 switch (v.getId())
                 {
-
-                    case R.id.wallpaper:
+                    case R.id.activateblock:
+                    case R.id.bootblock:
                     {
-                        if (mListener != null) mListener.onPickupImage();
-                    }
-                    break;
-
-                    case R.id.clear:
-                    {
-                        mPreference.setPref_background("");
+                        operationBlock();
                     }
                     break;
 
                     case R.id.camera:
                     {
-                        boolean camera = mPreference.getPref_CameraExec();
-
-                        mPreference.setPref_CameraExec(!camera);
-
-                        if (!camera)
+                        if (isLockScreen())
                         {
-                            Log.w(TAG, "change camera enable");
+                            operationBlock();
                         }
                         else
                         {
-                            Log.w(TAG,"change camera disable");
+                            Func_cameraToggle();
+                        }
+                    }
+                    break;
+
+                    case R.id.lock:
+                    {
+                        if (!isLockScreen())
+                        {
+                            wallPaperDialog();
+                        }
+                        else
+                        {
+                            operationBlock();
                         }
                     }
                     break;
@@ -342,4 +424,43 @@ public class SettingFragment extends FragmentBase implements RadioGroup.OnChecke
             }
         }
     };
+
+    /********************************************************************************************
+     *
+     *  壁紙変更ダイアログ
+     *
+     ********************************************************************************************/
+    void wallPaperDialog()
+    {
+        mDialog = new AlertDialog.Builder(mContext)
+                .setTitle(R.string.wallPaperTitle )
+                .setMessage(R.string.wallPaperMessage)
+                .setPositiveButton(R.string.selectw, new  DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        Func_selectWallPaper();
+                    }
+                })
+                .setNegativeButton(R.string.clearw, new  DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        Func_clearWallPaper();
+                    }
+                })
+                .setNeutralButton(R.string.cancel, new  DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        mListener.onCancel();
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        mListener.onCancel();
+                    }
+                })
+                .show();
+    }
  }

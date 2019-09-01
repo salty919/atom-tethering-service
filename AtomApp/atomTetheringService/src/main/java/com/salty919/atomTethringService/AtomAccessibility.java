@@ -24,22 +24,25 @@ public class AtomAccessibility extends AccessibilityService
     private final String TAG = AtomAccessibility.class.getSimpleName();
 
     private final Object            mLock               = new Object();
-    private final Handler           mPttHandler         = new Handler();
-    private boolean                 mServiceEnable      = false;
 
-    public static int               mPttCode            = 286;
-    public static long              mLongPressMsec      = 500;
+    public interface KeyInterface
+    {
+        /** 機能が有効/無効に変化した通知         */
+        void onReady(boolean enable);
 
-    private long                    mPttDownTIme        = 0;
-    private boolean                 mPttPress           = false;
-    private boolean                 mLongPressStart     = false;
+        /** HW KEYが押された通知                 */
+        boolean onKeyPress(KeyEvent e);
+    }
 
     //------------------------------------------------------------------------------------
-    // 静的呼び出し用
+    //　内部変数
     //------------------------------------------------------------------------------------
 
-    private static AtomAccessibility sInstance    = null;
-    private static AtomPttInterface         sListener   = null;
+    private static AtomAccessibility    sInstance       = null;
+    private static KeyInterface         sListener       = null;
+    private KeyInterface                mListener       = null;
+    private boolean                     mServiceEnable  = false;
+    private final Handler               mHandler        = new Handler();
 
     /**********************************************************************************************
      *
@@ -49,7 +52,7 @@ public class AtomAccessibility extends AccessibilityService
      *
      *********************************************************************************************/
 
-    public static void setListener(AtomPttInterface listener)
+    public static void setListener(KeyInterface listener)
     {
         sListener = listener;
 
@@ -59,7 +62,7 @@ public class AtomAccessibility extends AccessibilityService
         }
     }
 
-    private void _setListener(AtomPttInterface listener)
+    private void _setListener(KeyInterface listener)
     {
         synchronized (mLock)
         {
@@ -83,10 +86,10 @@ public class AtomAccessibility extends AccessibilityService
 
     private void postServiceReady()
     {
-        final AtomPttInterface _listener = mListener;
+        final KeyInterface _listener = mListener;
         final boolean  _ServiceEnable = mServiceEnable;
 
-        mPttHandler.post(new Runnable() {
+        mHandler.post(new Runnable() {
             @Override
             public void run() {
                 synchronized (mLock) {
@@ -96,8 +99,6 @@ public class AtomAccessibility extends AccessibilityService
             }
         });
     }
-
-    private AtomPttInterface mListener = null;
 
     /**********************************************************************************************
      *
@@ -152,35 +153,11 @@ public class AtomAccessibility extends AccessibilityService
     @Override
     public boolean onKeyEvent(KeyEvent e)
     {
-        synchronized (mLock)
+        if (mListener != null)
         {
-            //Log.w(TAG,"KEY "+ e.getKeyCode());
-
-            if (mListener != null)
-            {
-                int code = e.getKeyCode();
-
-                if (code == mPttCode)
-                {
-                    if (e.getAction() == ACTION_DOWN)
-                    {
-
-                        pressPtt(true);
-                    }
-                    else
-                    {
-                        pressPtt(false);
-                    }
-                    return true;
-
-                }
-                else if ((e.getKeyCode() == KEYCODE_VOLUME_UP) && (e.getAction() == ACTION_DOWN))
-                {
-                    if (mListener.onVolPress()) return true;
-                }
-            }
+            if (mListener.onKeyPress(e))
+                return true;
         }
-
         return super.onKeyEvent(e);
     }
 
@@ -227,97 +204,5 @@ public class AtomAccessibility extends AccessibilityService
         Log.w(TAG, "onInterrupt");
     }
 
-    /**********************************************************************************************
-     *
-     * PTTロングPRESS計測タイマー
-     *
-     *********************************************************************************************/
 
-    private final Runnable  mPttLongPressTimer = new Runnable()
-    {
-        @Override
-        public void run()
-        {
-            synchronized (mLock)
-            {
-                if (mLongPressStart)
-                {
-                    mLongPressStart = false;
-
-                    //
-                    // PTT-DOWN hold time  > mLongPressMsec
-                    //
-
-                    if (mListener != null) mListener.onPttLongPress();
-                }
-            }
-        }
-    };
-
-    /**********************************************************************************************
-     *
-     * PTTボタンのDOWN/UP
-     *
-     *********************************************************************************************/
-
-    private void pressPtt(boolean down)
-    {
-        //Log.w(TAG," PTT "+ down);
-
-        if (mListener == null) return;
-
-        long current = SystemClock.elapsedRealtime();
-
-        if (down)
-        {
-            //Log.w(TAG, "DOWN");
-
-            //
-            // PTT-DOWN
-            //
-
-            if ((!mPttPress) || (current - mPttDownTIme > mLongPressMsec))
-            {
-                //
-                // PTT UP->DOWN & Previous Down > mLongPressMsec
-                //
-
-                mPttDownTIme    = current;
-
-                mPttPress = mListener.onPttPress();
-
-                if (mPttPress)
-                {
-                    mLongPressStart = true;
-                    mPttHandler.postDelayed(mPttLongPressTimer, mLongPressMsec);
-                }
-            }
-        }
-        else
-        {
-            //Log.w(TAG, "UP");
-
-            //
-            // PTT-UP
-            //
-
-            if ((mPttPress) && (current - mPttDownTIme < mLongPressMsec))
-            {
-                if (mLongPressStart)
-                {
-                    mLongPressStart = false;
-                    mPttHandler.removeCallbacks(mPttLongPressTimer);
-                }
-
-                //
-                // PTT DOWN->UP & Duration < mLongPressMsec
-                //
-
-                mListener.onPttClick();
-            }
-
-            mPttPress = false;
-        }
-
-    }
 }

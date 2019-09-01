@@ -1,25 +1,31 @@
 package com.salty919.atomTethringUI;
 
+import android.app.AlertDialog;
+import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Base64;
-import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -30,6 +36,8 @@ import com.salty919.atomTethringService.AtomStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileDescriptor;
+import java.util.Locale;
+import java.util.Objects;
 
 /*************************************************************************************************
  *
@@ -51,7 +59,7 @@ import java.io.FileDescriptor;
  *************************************************************************************************/
 
 public class MainActivity extends AppCompatActivity implements ServiceConnection,
-        AtomStatus.observer,AtomService.Listener,ViewPagerAdapter.Listener,
+        AtomStatus.observer,AtomService.Listener,FragmentBase.Listener,
         AtomPreference.callBack
 {
     private static String TAG;
@@ -62,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     // バンドルキー
     public static final String    KEY_boot              = "bootUp";
 
-    public final int   RESULT_PICK_IMAGE                = 1;
+    private final int           RESULT_PICK_IMAGE       = 1;
     private static final int    REQUEST_CAMERA          = 2;
 
     // lock
@@ -100,6 +108,17 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     private boolean                             mCameraExec         = false;
 
+    private Vibrator                            mVibrator           = null;
+
+    private AlertDialog                         mDialog             = null;
+
+    private Toast                               mToast              = null;
+
+    private final Context                       mContext;
+
+    private static final long[]                 mTimerArray         = {0,5*60*1000L,10*60*1000L,15*60*1000L, 30*60*1000L };
+    private int                                 mTimerIndex         = 0;
+
     /**********************************************************************************************
      *
      *  コンストラクタ
@@ -111,7 +130,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         mCnt++;
 
         TAG =  "Atom"+MainActivity.class.getSimpleName()+ "["+mCnt+"]";
-        Log.w(TAG, " new MainActivity");
+        Log.w(TAG, " new MainActivity "+ this.hashCode());
+
+        mContext = this;
     }
 
     /**********************************************************************************************
@@ -126,6 +147,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         if (mPreference.getPref_StatusHidden())
         {
+            Log.w(TAG,"STATUS BAR HIDDEN");
+
+
             decor.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -133,10 +157,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
         else
         {
+            Log.w(TAG,"STATUS BAR ENABLE");
+
             decor.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE);
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -180,10 +207,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             mBoot = false;
         }
 
-        adjustFontScale(1.30f);
-
-        // プリファレンス管理生成＆コールバック登録
-        mPreference = new AtomPreference(getApplicationContext());
+        if (mPreference == null)
+        {
+            // プリファレンス管理生成＆コールバック登録
+            mPreference = new AtomPreference(getApplicationContext());
+        }
 
         mPreference.setCallBack(this);
 
@@ -207,6 +235,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         mStatus.uiActive(true);
         mStatus.resisterObserver(this);
 
+        mVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         //---------------------------------------------------------
         // FULL SCREEN
         //---------------------------------------------------------
@@ -218,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         //---------------------------------------------------------
 
         setShowWhenLocked(true);
-        setTurnScreenOn(true);
+        setTurnScreenOn(false);
 
         //--------------------------------------------------------
         // LAYOUT-SETTING
@@ -227,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         setContentView(R.layout.activity_main);
 
         mPager      = findViewById(R.id.viewPager);
-        mAdapter    = new ViewPagerAdapter(getSupportFragmentManager(), mPreference,this);
+        mAdapter    = new ViewPagerAdapter(getSupportFragmentManager());
 
         mPager.setAdapter(mAdapter);
 
@@ -242,22 +271,26 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         doBindService();
     }
 
-    public void adjustFontScale(float scale)
+    @Override
+    protected void attachBaseContext(Context newBase)
     {
-        Resources res = this.getResources();
-        Configuration configuration = res.getConfiguration();
+        Log.w(TAG, "attachBaseContext");
 
-        if (scale != configuration.fontScale)
+        super.attachBaseContext(newBase);
+
+        if(mPreference == null)
         {
-            Log.w(TAG, "fontScale = " + configuration.fontScale + " -> " + scale);
-
-            configuration.fontScale = scale;
-            DisplayMetrics metrics = getResources().getDisplayMetrics();
-            WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-            wm.getDefaultDisplay().getMetrics(metrics);
-            metrics.scaledDensity = configuration.fontScale * metrics.density;
-            res.updateConfiguration(configuration, metrics);
+            mPreference = new AtomPreference(getApplicationContext());
         }
+
+        float scale = mPreference.getPref_FontScale();
+        Log.w(TAG, " FONT " + scale);
+
+        final Configuration override = new Configuration(newBase.getResources().getConfiguration());
+        override.fontScale = scale;
+        applyOverrideConfiguration(override);
+
+
     }
 
     /***********************************************************************************************
@@ -273,6 +306,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         mCameraExec = false;
 
+        setTurnScreenOn(mPreference.getPref_PttWakeup());
         super.onStart();
     }
 
@@ -281,8 +315,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
      *  ACTIVITY#RESUME                 アクティビティがFGへ遷移
      *
      **********************************************************************************************/
-
-    private float mSystemBrightness;
 
     @Override
     public void onResume()
@@ -294,14 +326,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         //---------------------------------------------------------
 
         fullScreen();
-
-        if (false)
-        {
-            WindowManager.LayoutParams lp = getWindow().getAttributes();
-            mSystemBrightness = lp.screenBrightness;
-            lp.screenBrightness = 1.0f;
-            getWindow().setAttributes(lp);
-        }
 
         // ステータスバーなどがあれば閉じる
         Intent intent = new Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
@@ -339,21 +363,14 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     {
         Log.w(TAG,"onPause");
 
+        if (mAdapterEnable)
+        {
+            mPager.setAdapter(null);
+            mAdapterEnable = false;
+        }
+
         // UIがBGに入った
         mStatus.uiState(false);
-
-        //mAdapter.destroyAllItem(mPager);
-
-        mPager.setAdapter(null);
-
-        mAdapterEnable = false;
-
-        if (false)
-        {
-            WindowManager.LayoutParams lp = getWindow().getAttributes();
-            lp.screenBrightness = mSystemBrightness;
-            getWindow().setAttributes(lp);
-        }
 
         super.onPause();
     }
@@ -428,12 +445,26 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     private void moveToBackground()
     {
-        //String mess = getResources().getString(R.string.ui_bg);
-        //Toast.makeText(this, mess, Toast.LENGTH_LONG).show();
         Log.w(TAG,"MOVE TO BackGround...");
 
         // UIをBGに落とす　→　Activity#pause
         moveTaskToBack(true);
+    }
+
+    /**********************************************************************************************
+     *
+     *  ロック画面上での動作かどうか確認
+     *
+     * @return  true ロック画面
+     *
+     ********************************************************************************************/
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    private boolean isLockScreen()
+    {
+        KeyguardManager keyguardmanager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+
+        return Objects.requireNonNull(keyguardmanager).isKeyguardLocked();
     }
 
     /***********************************************************************************************
@@ -447,7 +478,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public boolean dispatchKeyEvent(KeyEvent e)
     {
+        if (KeyEvent(e)) return true;
 
+        return super.dispatchKeyEvent(e);
+    }
+
+    private boolean KeyEvent(KeyEvent e)
+    {
         if (e.getKeyCode() == KeyEvent.KEYCODE_BACK)
         {
             int act = e.getAction();
@@ -463,8 +500,17 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
             return true;
         }
+        else if ((mService !=null)&&(mStatus !=null))
+        {
+            // ユーザー補助なしの場合はこちらで処理
+            if (!mStatus.getInfo().mPtt)
+            {
+                Log.w(TAG,"PRESS KEY " + e.getKeyCode() + (e.getAction() == KeyEvent.ACTION_DOWN ? " DOWN ":" UP "));
+                return mService.KeyCheck(e);
+            }
+        }
 
-        return super.dispatchKeyEvent(e);
+        return  false;
     }
 
     /**********************************************************************************************
@@ -487,13 +533,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             //
 
             {
-                // テザリング上限時間（ミリ秒）なし、5分、15分
-                // 個数制限はなし
-                // 制限時間不要の場合timeArray= null指定
-
-                long[] timeArray = {0, 5 * 60 * 1000L, 15 * 60 * 1000L};
-                mService.setTimeArray(timeArray);
-
                 // 通知バーに表示するアイコン
                 mService.setNotifyIconResource(R.mipmap.ic_launcher);
 
@@ -604,59 +643,236 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         mAdapter.notify(info);
     }
 
+    @Override
+    public Boolean OnVolUp(boolean exec)
+    {
+        int pos = mPager.getCurrentItem();
+
+        if (mAdapter.getItem(pos) instanceof ControlFragment)
+        {
+            if (exec)
+            {
+                mTimerIndex++;
+                if (mTimerIndex >= mTimerArray.length) mTimerIndex = 0;
+
+                long duration = mTimerArray[mTimerIndex];
+
+                mService.autoOffTimer(duration);
+            }
+            return true;
+        }
+        else if (mAdapter.getItem(pos) instanceof SettingFragment)
+        {
+            if (!isLockScreen())
+            {
+                if (exec)
+                {
+                    float scale = mPreference.getPref_FontScale();
+
+                    if (scale == 1.3f) scale = 1.0f;
+                    else scale = 1.3f;
+
+                    mPreference.setPref_FontScale(scale);
+
+                }
+                else
+                {
+                    float scale = mPreference.getPref_FontScale();
+                    String message = String.format(Locale.US, "FONT SCALE %1.1f", scale );
+                    mToast = Toast.makeText(mContext, message, Toast.LENGTH_LONG);
+                    mToast.setGravity(Gravity.CENTER, 0, 0);
+                    {
+                        View view = mToast.getView();
+                        view.setBackgroundResource(R.color.yellow);
+                    }
+                    mToast.show();
+
+                    reload();
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**********************************************************************************************
+     *
+     * AtomStatus#OnPttPress    PTTのプレス  from Service
+     *
+     *********************************************************************************************/
+    @Override
+    public void OnPttPress()
+    {
+        mService.tetheringToggle();
+    }
+
     /**********************************************************************************************
      *
      * AtomStatus#OnPttLongPress    PTTのロングプレス  from Service
      *
-     * この通知はどう使っても良い
-     *
      **********************************************************************************************/
-
-    private final static boolean stopServiceDebug = false;
 
     @Override
     public void OnPttLongPress()
     {
-        if (!stopServiceDebug)
+        int pos = mPager.getCurrentItem();
+
+        if (mAdapter.getItem(pos) instanceof ControlFragment)
         {
-            if (mPreference.getPref_CameraExec())
+            // カメラ起動
+            Func_CameraExecute();
+        }
+        else if (mAdapter.getItem(pos) instanceof SettingFragment)
+        {
+            if (!isLockScreen())
             {
-                Log.w(TAG, "<camera Exec>");
-                mCameraExec = true;
-
-                // インテントのインスタンス生成
-                Intent intent = new Intent();
-                // インテントにアクションをセット
-                intent.setAction("android.media.action.IMAGE_CAPTURE_SECURE");
-
-                try
-                {
-                    // カメラアプリ起動
-                    //startActivityForResult(intent, REQUEST_CAMERA);
-                    PendingIntent pendingIntent = PendingIntent.getActivity(this, REQUEST_CAMERA, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-                    //pendingIntent.send();
-                    IntentSender intentSender = pendingIntent.getIntentSender();
-                    startIntentSenderForResult(intentSender, REQUEST_CAMERA, null, 0, 0, 0);
-                }
-                catch (Exception e)
-                {
-                    Log.e(TAG, "camera Intent error");
-                }
+                // Change SCREEN ON MODE
+                Func_ScreenOnMode();
             }
             else
             {
-                moveToBackground();
+                // ステータスバーのトグル制御
+                Func_StatusBarToggle();
             }
         }
         else
         {
-            // (機能デバック）
-            //
-            // サービス停止フラグを立てて、アクティビティを終了　→　onPause->onDestroy
-
-            mServiceStop = true;
-            finish();
+            // アプリ終了
+            Func_ExitApp();
         }
+    }
+
+    private void Func_CameraExecute()
+    {
+        if (mPreference.getPref_CameraExec())
+        {
+            Log.w(TAG, "<camera Exec>");
+
+            mCameraExec = true;
+
+            mVibrator.vibrate(VibrationEffect.createOneShot(150, 10));
+
+            // インテントのインスタンス生成
+            Intent intent = new Intent();
+            // インテントにアクションをセット
+            intent.setAction("android.media.action.IMAGE_CAPTURE_SECURE");
+
+            try
+            {
+                // カメラアプリ起動
+                //startActivityForResult(intent, REQUEST_CAMERA);
+                PendingIntent pendingIntent = PendingIntent.getActivity(this, REQUEST_CAMERA, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                //pendingIntent.send();
+                IntentSender intentSender = pendingIntent.getIntentSender();
+                startIntentSenderForResult(intentSender, REQUEST_CAMERA, null, 0, 0, 0);
+            }
+            catch (Exception e)
+            {
+                Log.e(TAG, "camera Intent error");
+            }
+        }
+    }
+
+    private void Func_ScreenOnMode()
+    {
+        // PTT / POT のトグル制御
+
+        mVibrator.vibrate(VibrationEffect.createOneShot(150, 10));
+
+
+        if (mDialog != null) mDialog.dismiss();
+
+        mDialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.operation )
+                .setMessage(R.string.operationMessage)
+                .setPositiveButton(R.string.ptt, new  DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        mPreference.setPref_PttWakeup(true); reload();
+                        mToast = Toast.makeText(mContext, R.string.pttwakeup, Toast.LENGTH_LONG);
+                        mToast.setGravity(Gravity.CENTER, 0, 0);
+                        {
+                            View view = mToast.getView();
+                            view.setBackgroundResource(R.color.yellow);
+                        }
+                        mToast.show();
+                    }
+                })
+                .setNegativeButton(R.string.pow, new  DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        mPreference.setPref_PttWakeup(false); reload();
+                        mToast = Toast.makeText(mContext, R.string.powerwakeup, Toast.LENGTH_LONG);
+                        mToast.setGravity(Gravity.CENTER, 0, 0);
+                        {
+                            View view = mToast.getView();
+                            view.setBackgroundResource(R.color.yellow);
+                        }
+                        mToast.show();
+                    }
+                })
+                .setNeutralButton(R.string.cancel, new  DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        fullScreen();
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        fullScreen();
+                    }
+                })
+                .show();
+    }
+    private void Func_StatusBarToggle()
+    {
+        mVibrator.vibrate(VibrationEffect.createOneShot(150, 10));
+
+        boolean hidden = mPreference.getPref_StatusHidden();
+
+        hidden = !hidden;
+
+        mPreference.setPref_StatusHidden(hidden);
+
+        fullScreen();
+    }
+
+    private void Func_ExitApp()
+    {
+        mVibrator.vibrate(VibrationEffect.createOneShot(150, 10));
+
+        if (mDialog != null) mDialog.dismiss();
+
+        mDialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.exitDialog )
+                .setPositiveButton(R.string.yes, new  DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        mServiceStop = true;
+                        finish();
+                    }
+                })
+                .setNegativeButton(R.string.no, new  DialogInterface.OnClickListener()
+                {
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        fullScreen();
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        fullScreen();
+                    }
+                })
+                .show();
+
     }
 
     @Override
@@ -667,6 +883,17 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             Log.w(TAG,"<Camera force finish> ");
             mCameraExec = false;
             moveToBackground();
+        }
+
+        if (mDialog!= null)
+        {
+            mDialog.dismiss();
+            mDialog = null;
+        }
+
+        if (mToast !=null)
+        {
+            mToast.cancel();
         }
     }
 
@@ -693,9 +920,27 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return id.toString();
     }
 
+    /*********************************************************************************************
+     *
+     *  FragmentBaseリスナ； フラグメント側の準備完了
+     *
+     * @param fragment      フラグメント
+     *
+     *********************************************************************************************/
+
+    @Override
+    public void onReady(FragmentBase fragment)
+    {
+        Log.w(TAG,"onReady "+ fragment.TAG);
+
+        fragment.setPreference(mPreference);
+        fragment.setService(mService);
+        fragment.UI_update(mStatus.getInfo());
+    }
+
     /**********************************************************************************************
      *
-     *  BackGround Image 選択画面の起動要求　from　ViewPager(SETTING-FRAGMENT)
+     *  FragmentBaseリスナ: BackGround Image 選択画面の起動要求　
      *
      *  PAUSE時にフラグメント側は破棄する仕様に変更したので、Activity側に本機能を移動する
      *
@@ -723,26 +968,41 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     /**********************************************************************************************
      *
-     *  画面シングルタップ from ViewPager
+     *  FragmentBaseリスナ: 画面シングルタップ
      *
      *********************************************************************************************/
 
     @Override
     public void onSingleTapUp()
     {
-        // UIをBGに落とす　→　Activity#pause
-        moveToBackground();
+        int pos = mPager.getCurrentItem();
+
+        if (mAdapter.getItem(pos) instanceof ControlFragment)
+        {
+            moveToBackground();
+        }
     }
 
     /**********************************************************************************************
      *
-     *  画面ダブルタップ from ViewPager
+     *  FragmentBaseリスナ: 画面ダブルタップ
      *
      *********************************************************************************************/
 
     @Override
     public void onDoubleTap() {
 
+    }
+
+    /*********************************************************************************************
+     *
+     *  FragmentBaseリスナ:  DIALOG CANCEL
+     *
+     ********************************************************************************************/
+    @Override
+    public void onCancel()
+    {
+        fullScreen();
     }
 
     /*********************************************************************************************
@@ -786,7 +1046,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onPreferenceChanged(String key)
     {
-        if (AtomPreference.KEY_autostart.equals(key))
+        if (AtomPreference.KEY_autoStart.equals(key))
         {
             boolean auto = mPreference.getPref_AutoStart();
 
@@ -812,7 +1072,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
             mAdapter.backGroundImage();
         }
-        else if (AtomPreference.KEY_pttwakeup.equals(key))
+        else if (AtomPreference.KEY_pttWakeup.equals(key))
         {
             if (mPreference.getPref_PttWakeup())
             {
@@ -829,6 +1089,21 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         else if (AtomPreference.KEY_cameraExec.equals(key))
         {
             mAdapter.notify(mStatus.getInfo());
+        }
+        else if (AtomPreference.KEY_statusHidden.equals(key))
+        {
+            if (mPreference.getPref_StatusHidden())
+            {
+                Log.w(TAG, "Change Status bar OFF");
+            }
+            else
+            {
+                Log.w(TAG, "Change Status bar ON");
+            }
+        }
+        else if (AtomPreference.KEY_fontScale.equals(key))
+        {
+            Log.w(TAG, "Change font scale "+ mPreference.getPref_FontScale());
         }
     }
 
@@ -860,9 +1135,14 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             //
             // 背景画像選択（ピッカー）からの戻り
             //
+            Display display = getWindowManager().getDefaultDisplay();
 
-            int dst_height = mAdapter.mHeight;
-            int dst_width = mAdapter.mWidth;
+            Point point = new Point();
+
+            display.getRealSize(point);
+
+            int dst_height  = point.y;
+            int dst_width   = point.x;
 
             //
             // 壁紙サイズが不明な場合は何もしない（安全対策）
@@ -959,3 +1239,4 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
     }
 }
+

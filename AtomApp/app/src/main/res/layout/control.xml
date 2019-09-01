@@ -49,7 +49,7 @@
             android:layout_weight="1"
             android:background="@drawable/frame_style"
             android:gravity="center_vertical|center_horizontal"
-            android:text="@string/accessbility"
+            android:text="@string/ptt"
             android:textColor="@android:color/background_light"
             android:textSize="18sp" />
 

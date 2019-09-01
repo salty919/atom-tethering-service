@@ -1,10 +1,10 @@
 package com.salty919.atomTethringUI;
 
+import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.ViewGroup;
 
@@ -27,88 +27,62 @@ import java.util.ArrayList;
  *
  *************************************************************************************************/
 
-public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBase.Listener
+public class ViewPagerAdapter extends FragmentPagerAdapter
 {
-    public interface Listener
-    {
-        void onPickupImage();
-        void onSingleTapUp();
-        void onDoubleTap();
-    }
 
-    @SuppressWarnings({"FieldCanBeLocal", "unused"})
-    private static final String TAG = ViewPagerAdapter.class.getSimpleName();
+    private final String TAG = ViewPagerAdapter.class.getSimpleName();
 
     private final FragmentManager           mFragmentManager;
-    private final Listener                  mListener;
     private final ArrayList<FragmentBase>   mItemList;
-    private int                             mItemCnt;
-    private AtomPreference                  mPreference;
-    private AtomService                     mService = null;
-    private AtomStatus.AtomInfo             mInfo   = null;
-    int                                     mWidth  = 0;
-    int                                     mHeight = 0;
+    private final int                       mItemCnt;
 
     /**********************************************************************************************
      *
      *  コンストラクタ
      *
      * @param fragmentManager       フラグメントマネージャ
-     * @param listener              リスナー
      *
      *********************************************************************************************/
 
-    ViewPagerAdapter(FragmentManager fragmentManager, AtomPreference preference, Listener listener)
+    ViewPagerAdapter(FragmentManager fragmentManager)
     {
         super(fragmentManager);
 
-        Log.e(TAG, "new Adapter");
+        Log.e(TAG, "new Adapter "+ this.hashCode());
 
         mFragmentManager    = fragmentManager;
-        mListener           = listener;
         mItemList           = new ArrayList<>();
-        mPreference         = preference;
 
         //
         // Page0: ControlFragment
         //
 
-        mItemList.add(new ControlFragment());
+        {
+            FragmentBase fragment = new ControlFragment();
 
+            mItemList.add(fragment);
+        }
         //
         // Page1: SettingFragment
         //
+        {
+            FragmentBase fragment = new SettingFragment();
 
-        mItemList.add(new SettingFragment());
+            mItemList.add(fragment);
+        }
 
         //
         // Page2: DeviceFragment
         //
 
-        mItemList.add(new DeviceFragment());
+        {
+            FragmentBase fragment = new DeviceFragment();
+
+            mItemList.add(fragment);
+        }
 
         mItemCnt    = 3;
     }
-
-    /**********************************************************************************************
-     *
-     * ページャに登録された全フラグメントを開放する
-     *
-     * @param pager   ぺーじゃ
-     *
-     *********************************************************************************************/
-
-    @SuppressWarnings("unused")
-    void destroyAllItem(ViewPager pager)
-    {
-        for (int pos = 0; pos < getCount() ; pos++)
-        {
-            FragmentBase fragment=  (FragmentBase) this.instantiateItem(pager, pos);
-            fragment.setListener(null);
-            destroyItem(pager, pos, fragment);
-        }
-    }
-
     /**********************************************************************************************
      *
      * UI情報更新通知
@@ -119,11 +93,9 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
 
     void notify(AtomStatus.AtomInfo info)
     {
-        mInfo = info;
-
         for (FragmentBase fragment:mItemList )
         {
-            fragment.UI_update(info);
+            if (fragment.mEnable)  fragment.UI_update(info);
         }
     }
 
@@ -137,7 +109,7 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
     {
         for (FragmentBase fragment:mItemList )
         {
-            fragment.background_image();
+            if (fragment.mEnable)  fragment.background_image();
         }
     }
 
@@ -149,24 +121,16 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
 
     void setService(AtomService service)
     {
-        mService = service;
-
         for (FragmentBase fragment:mItemList )
         {
-            fragment.setService(service);
+            if (fragment.mEnable)  fragment.setService(service);
         }
     }
 
     @Override
     public Fragment getItem(int position)
     {
-        FragmentBase fragment = mItemList.get(position);
-
-        Log.w(TAG," add   ["+position+"] " + fragment.TAG);
-
-        fragment.setListener(this);
-
-        return fragment;
+        return mItemList.get(position);
     }
 
     @Override
@@ -176,7 +140,7 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
     }
 
     @Override
-    public void destroyItem(ViewGroup container, int position, Object object)
+    public void destroyItem(@NonNull ViewGroup container, int position, @NonNull Object object)
     {
         super.destroyItem(container, position, object);
 
@@ -188,41 +152,5 @@ public class ViewPagerAdapter extends FragmentPagerAdapter implements FragmentBa
             trans.remove((Fragment) object);
             trans.commit();
         }
-    }
-
-    @Override
-    public void onReady(FragmentBase fragment)
-    {
-        Log.w(TAG,"onReady "+ fragment.TAG);
-
-        fragment.setPreference(mPreference);
-        fragment.setService(mService);
-        if (mInfo != null) fragment.UI_update(mInfo);
-    }
-
-    @Override
-    public void onLayoutFix(int width, int height)
-    {
-        mWidth = width;
-        mHeight = height;
-    }
-
-    @Override
-    public void onPickupImage()
-    {
-        mListener.onPickupImage();
-    }
-
-    @Override
-    public void onSingleTapUp()
-    {
-
-        mListener.onSingleTapUp();
-    }
-
-    @Override
-    public void onDoubleTap()
-    {
-        mListener.onDoubleTap();
     }
 }

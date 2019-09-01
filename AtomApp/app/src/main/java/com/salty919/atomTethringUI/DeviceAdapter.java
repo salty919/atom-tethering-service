@@ -1,5 +1,6 @@
 package com.salty919.atomTethringUI;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
 import android.util.Log;
@@ -17,17 +18,15 @@ public class DeviceAdapter extends BaseAdapter
 {
     private final String TAG  = DeviceAdapter.class.getSimpleName();
 
-    private     Context                 context;
-    private     LayoutInflater          layoutInflater;
+    private final LayoutInflater          layoutInflater;
     private     ArrayList<AtomDevice>   deviceArrayList;
 
-    public DeviceAdapter(Context context)
+    DeviceAdapter(Context context)
     {
-        this.context = context;
         this.layoutInflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
     }
 
-    public void setDeviceList(ArrayList<AtomDevice> deviceArrayList)
+    void setDeviceList(ArrayList<AtomDevice> deviceArrayList)
     {
         this.deviceArrayList = deviceArrayList;
     }
@@ -59,6 +58,7 @@ public class DeviceAdapter extends BaseAdapter
         return deviceArrayList.get(position).getId();
     }
 
+    @SuppressLint("ViewHolder")
     @Override
     public View getView(int position, View convertView, ViewGroup parent)
     {

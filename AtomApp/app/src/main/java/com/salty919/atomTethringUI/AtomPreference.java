@@ -14,44 +14,34 @@ import android.util.Log;
  *
  *************************************************************************************************/
 
-@SuppressWarnings("ALL")
 class AtomPreference
 {
     @SuppressWarnings({"unused"})
     private static final String TAG = AtomPreference.class.getSimpleName();
 
+    private final String KEY_version        = "preference version";
+
     /*** 保存パラメータ　*/
-
-    @SuppressWarnings({"WeakerAccess", "SpellCheckingInspection"})
-    static final String KEY_autostart       = "auto start";
-    @SuppressWarnings("WeakerAccess")
+    static final String KEY_autoStart       = "auto start";
     static final String KEY_foregroundS     = "foreground service";
-    @SuppressWarnings("WeakerAccess")
     static final String KEY_background      = "background ";
-    @SuppressWarnings("WeakerAccess")
-    static final String KEY_version         = "preference version";
-    /** ver 1.0.1 **/
-    @SuppressWarnings({"WeakerAccess", "SpellCheckingInspection"})
-    static final String KEY_pttwakeup       = "ptt wakeup";
-    @SuppressWarnings("WeakerAccess")
+    static final String KEY_pttWakeup       = "ptt wakeup";
     static final String KEY_statusHidden    = "status hidden";
-    @SuppressWarnings("WeakerAccess")
     static final String KEY_cameraExec      = "camera execute";
-
+    static final String KEY_fontScale       = "font scale";
 
     /*** PREFバージョン（アップグレード時の下位互換用） */
-
-    @SuppressWarnings("WeakerAccess")
-    final String PREF_VER                   = "1.1.4";
+    final String PREF_VER                   = "1.1.5";
 
     private final SharedPreferences mPref;
 
-    private boolean mAutostart;
+    private boolean mAutoStart;
     private boolean mForeground;
 
     private boolean mPttWakeup;
     private boolean mStatusHidden;
     private boolean mCameraExec;
+    private Float   mFontScale;
 
     /**********************************************************************************************
      *
@@ -83,14 +73,14 @@ class AtomPreference
             SharedPreferences.Editor edit = mPref.edit();
 
             edit.putBoolean(KEY_foregroundS, true);
-            edit.putBoolean(KEY_autostart, true);
+            edit.putBoolean(KEY_autoStart, true);
 
             edit.putString(KEY_version, PREF_VER);
 
-            edit.putBoolean(KEY_pttwakeup, true);
+            edit.putBoolean(KEY_pttWakeup, true);
             edit.putBoolean(KEY_statusHidden,false);
             edit.putBoolean(KEY_cameraExec, true);
-
+            edit.putFloat(KEY_fontScale, 1.3f);
             edit.apply();
         }
         else if (!getPref_VER().equals(PREF_VER))
@@ -101,26 +91,28 @@ class AtomPreference
 
             edit.putString(KEY_version, PREF_VER);
 
-            edit.putBoolean(KEY_pttwakeup, true);
+            edit.putBoolean(KEY_pttWakeup, true);
             edit.putBoolean(KEY_statusHidden,false);
             edit.putBoolean(KEY_cameraExec, true);
+            edit.putBoolean(KEY_cameraExec, true);
+            edit.putFloat(KEY_fontScale, 1.3f);
             edit.apply();
         }
 
-        mAutostart      = getPref_AutoStart();
+        mAutoStart = getPref_AutoStart();
         mForeground     = getPref_ForegroundService();
 
         mPttWakeup      = getPref_PttWakeup();
         mStatusHidden   = getPref_StatusHidden();
         mCameraExec     = getPref_CameraExec();
-
+        mFontScale      = getPref_FontScale();
         //ログ出力
         {
             String ver = mPref.getString(KEY_version, "");
 
-            Log.w(TAG, "PREF [AUTO START] " + mAutostart + " [FOREGROUND] " + mForeground
+            Log.w(TAG, "PREF [AUTO START] " + mAutoStart + " [FOREGROUND] " + mForeground
                     +" [PTT] " + mPttWakeup + " [STATUS HIDDEN] " + mStatusHidden
-                    +" [CAM] "+ mCameraExec + " [VER] " + ver);
+                    +" [CAM] "+ mCameraExec + " [FONT] "+ mFontScale + " [VER] " + ver);
         }
     }
 
@@ -166,11 +158,11 @@ class AtomPreference
 
                     if (mListener == null) return;
 
-                    if (KEY_autostart.equals(key))
+                    if (KEY_autoStart.equals(key))
                     {
-                        mAutostart = getPref_AutoStart();
+                        mAutoStart = getPref_AutoStart();
 
-                        Log.w(TAG,"[auto start] CHG "+ mAutostart);
+                        Log.w(TAG,"[auto start] CHG "+ mAutoStart);
 
                         mListener.onPreferenceChanged(key);
                     }
@@ -188,7 +180,7 @@ class AtomPreference
 
                         mListener.onPreferenceChanged(key);
                     }
-                    else if (KEY_pttwakeup.equals(key))
+                    else if (KEY_pttWakeup.equals(key))
                     {
                         mPttWakeup = getPref_PttWakeup();
 
@@ -212,6 +204,14 @@ class AtomPreference
 
                         mListener.onPreferenceChanged(key);
                     }
+                    else if(KEY_fontScale.equals(key))
+                    {
+                        mFontScale = getPref_FontScale();
+
+                        Log.w(TAG,"[font] CHG: "+ mFontScale);
+
+                        mListener.onPreferenceChanged(key);
+                    }
                 }
             };
 
@@ -228,67 +228,14 @@ class AtomPreference
 
     /**********************************************************************************************
      *
-     *  自動スタート読み出し
+     *  自動スタート
      *
      *********************************************************************************************/
 
     boolean getPref_AutoStart()
     {
-        return mPref.getBoolean(KEY_autostart, true);
+        return mPref.getBoolean(KEY_autoStart, true);
     }
-
-    /**********************************************************************************************
-     *
-     *  フォアグランドサービス読み出し
-     *
-     *********************************************************************************************/
-
-    boolean getPref_ForegroundService()
-    {
-        return mPref.getBoolean(KEY_foregroundS, true);
-    }
-    /**********************************************************************************************
-     *
-     *  PTTパワーオン＆アクティビティ起動
-     *
-     *********************************************************************************************/
-
-    @SuppressWarnings("WeakerAccess")
-    boolean getPref_PttWakeup()
-    {
-        return mPref.getBoolean(KEY_pttwakeup, true);
-    }
-
-
-    /**********************************************************************************************
-     *
-     *  ステータスバーを隠す
-     *
-     *********************************************************************************************/
-
-    @SuppressWarnings("WeakerAccess")
-    boolean getPref_StatusHidden()
-    {
-        return mPref.getBoolean(KEY_statusHidden, true);
-    }
-
-    /**********************************************************************************************
-     *
-     *  かめら連動
-     *
-     *********************************************************************************************/
-
-    @SuppressWarnings("WeakerAccess")
-    boolean getPref_CameraExec()
-    {
-        return mPref.getBoolean(KEY_cameraExec, true);
-    }
-
-    /**********************************************************************************************
-     *
-     *  自動スタート書き込み
-     *
-     *********************************************************************************************/
 
     void setPref_AutoStart(boolean enable)
     {
@@ -296,15 +243,20 @@ class AtomPreference
 
         SharedPreferences.Editor    edit = mPref.edit();
 
-        edit.putBoolean(KEY_autostart, enable);
+        edit.putBoolean(KEY_autoStart, enable);
         edit.apply();
     }
 
     /**********************************************************************************************
      *
-     *  フォアグランドサービス書き込み
+     *  フォアグランドサービス
      *
      *********************************************************************************************/
+
+    boolean getPref_ForegroundService()
+    {
+        return mPref.getBoolean(KEY_foregroundS, true);
+    }
 
     void setPref_ForegroundService(boolean enable)
     {
@@ -316,27 +268,63 @@ class AtomPreference
         edit.apply();
     }
 
-    void setPref_background(String bmtStr)
-    {
-        SharedPreferences.Editor    edit = mPref.edit();
+    /**********************************************************************************************
+     *
+     *  PTTパワーオン＆アクティビティ起動
+     *
+     *********************************************************************************************/
 
-        edit.putString(KEY_background, bmtStr);
-        edit.apply();
+    boolean getPref_PttWakeup()
+    {
+        return mPref.getBoolean(KEY_pttWakeup, true);
     }
 
-    String getPref_background()
+    void setPref_PttWakeup(boolean on)
     {
-        return mPref.getString(KEY_background, "");
+        Log.e(TAG,"[ptt wakeup]  SET "+ on);
+
+        SharedPreferences.Editor    edit = mPref.edit();
+
+        edit.putBoolean(KEY_pttWakeup, on);
+        edit.apply();
     }
 
     /**********************************************************************************************
      *
-     *  Camera 呼び出し有効／無効
+     *  ステータスバーを隠す
      *
      *********************************************************************************************/
 
+    boolean getPref_StatusHidden()
+    {
+        return mPref.getBoolean(KEY_statusHidden, true);
+    }
+
+    void setPref_StatusHidden(boolean off)
+    {
+        Log.e(TAG,"[status hidden]  SET "+ off);
+
+        SharedPreferences.Editor    edit = mPref.edit();
+
+        edit.putBoolean(KEY_statusHidden, off);
+        edit.apply();
+    }
+
+    /**********************************************************************************************
+     *
+     *  カメラ連動
+     *
+     *********************************************************************************************/
+
+    boolean getPref_CameraExec()
+    {
+        return mPref.getBoolean(KEY_cameraExec, true);
+    }
+
     void setPref_CameraExec(boolean on)
     {
+        Log.e(TAG,"[camera] SET "+ on);
+
         SharedPreferences.Editor    edit = mPref.edit();
 
         edit.putBoolean(KEY_cameraExec, on);
@@ -345,15 +333,39 @@ class AtomPreference
 
     /**********************************************************************************************
      *
-     *  PTTパワーオン＆アクティビティ起動
+     *  壁紙の切替
      *
      *********************************************************************************************/
 
-    void setPref_PttWakeup(boolean on)
+    String getPref_background() {  return mPref.getString(KEY_background, ""); }
+
+    void setPref_background(String bmtStr)
     {
+        Log.e(TAG,"[background] SET ");
+
         SharedPreferences.Editor    edit = mPref.edit();
 
-        edit.putBoolean(KEY_pttwakeup, on);
+        edit.putString(KEY_background, bmtStr);
+        edit.apply();
+    }
+
+    /*********************************************************************************************
+     *
+     *  FONT SCALE
+     *
+     *********************************************************************************************/
+
+    float getPref_FontScale()
+    {
+        return mPref.getFloat(KEY_fontScale,1.0f);
+    }
+    void setPref_FontScale(float scale)
+    {
+        Log.e(TAG,"[font] SET "+ scale);
+
+        SharedPreferences.Editor    edit = mPref.edit();
+
+        edit.putFloat(KEY_fontScale,scale);
         edit.apply();
     }
 }

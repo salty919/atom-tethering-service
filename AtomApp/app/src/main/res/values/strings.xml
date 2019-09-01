@@ -12,12 +12,15 @@
     <string name="noAddr">--.--.--.--</string>
     <string name="battry">100</string>
     <string name="battey_title">Battery</string>
-    <string name="accessbility">PTT</string>
+    <string name="ptt">PTT</string>
+    <string name="pow">POT</string>
     <string name="cam">CAM</string>
     <string name="tetherReq">TETHERING</string>
     <string name="wifiApDesc">WIFI-AP icon</string>
     <string name="ui_bg" >Atom Service: move to background</string>
     <string name="finish">Atom Service: stop service </string>
+    <string name="pttwakeup">select [ PTT ] </string>
+    <string name="powerwakeup">select [ POWER + PTT ] </string>
     <string name="info">INFORMATION</string>
     <string name="setting">SETTING</string>
     <string name="device">DEVICE info</string>
@@ -39,4 +42,22 @@
     <string name="dummyaddr">255.255.255.255</string>
     <string name="dummydev">nifname</string>
     <string name="nobcast">no broadcast</string>
+    <string name="lock"> Lock Screen </string>
+    <string name="unLock">Setting change OK</string>
+    <string name="exitDialog">Exit Atom Service ? </string>
+    <string name="exitMess">[PTT] - Long Press -  exit APP </string>
+    <string name="yes">YES</string>
+    <string name="no">NO</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="operationMessage">
+        \n[PTT] PTT\n\n[POT] POWER + PTT\n </string>
+    <string name="operation">++ OPERATION ++ </string>
+    <string name="caution">Caution</string>
+    <string name="dummy">0.0</string>
+    <string name="opblock">Operation Block</string>
+    <string name="wallPaperTitle">Wallpaper Select</string>
+    <string name="wallPaperMessage">select/clear wallpaper\n\nplease select image-file</string>
+    <string name="selectw">select</string>
+    <string name="clearw">clear</string>
 </resources>

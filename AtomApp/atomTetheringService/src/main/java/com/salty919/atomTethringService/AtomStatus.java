@@ -48,23 +48,6 @@ public class AtomStatus
     final   boolean                 mUiUsed             = true;
 
     //
-    // bundle key
-    //
-
-    /*
-    private static final String     KEY_bundle      = "bundle";
-    private static final String     KEY_sequence    = "sequence";
-    private static final String     KEY_tether      = "tether";
-    private static final String     KEY_type        = "type";
-    private static final String     KEY_ip          = "ip";
-    private static final String     KEY_battery     = "battery";
-    private static final String     KEY_ptt         = "ptt";
-    private static final String     KEY_wifiap      = "wifiap";
-    private static final String     KEY_timeratio   = "timerratio";
-    private static final String     KEY_timesec     = "timersec";
-    */
-
-    //
     // 生成初回用判別
     //
 
